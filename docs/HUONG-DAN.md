@@ -24,9 +24,10 @@
 - [8. Debug pipeline như người thật việc thật](#8-debug-pipeline-như-người-thật-việc-thật)
 - [9. Bảo mật và vận hành](#9-bảo-mật-và-vận-hành)
 - [10. Mở rộng: khi bạn thật sự cần server](#10-mở-rộng-khi-bạn-thật-sự-cần-server)
-- [11. Checklist 20 bước tự dựng từ số 0](#11-checklist-20-bước-tự-dựng-từ-số-0)
+- [11. Checklist tự dựng từ số 0](#11-checklist-tự-dựng-từ-số-0)
 - [12. Bài tập](#12-bài-tập)
-- [13. Phụ lục: cheat sheet, thuật ngữ, FAQ](#13-phụ-lục-cheat-sheet-thuật-ngữ-faq)
+- [13. Phụ lục: thuật ngữ, FAQ, tra cứu](#13-phụ-lục-thuật-ngữ-faq-tra-cứu)
+- [14. Phụ lục B: nguyên liệu copy-paste](#14-phụ-lục-b-nguyên-liệu-copy-paste)
 
 ---
 
@@ -36,6 +37,19 @@
 
 Cho người **biết viết code cơ bản** (HTML/CSS/JS hoặc Node.js) nhưng **chưa từng dựng CI/CD**.
 Không cần biết Docker, không cần server, không cần YAML trước đó.
+
+> **Cần biết trước (tối thiểu):** Git cơ bản và có tài khoản GitHub.
+> Đủ dùng nếu bạn làm được 5 lệnh này:
+>
+> ```bash
+> git clone <url>          # tải repo về máy
+> git switch -c ten-nhanh  # tạo nhánh mới
+> git add -A && git commit -m "mo ta"   # lưu thay đổi
+> git push                 # đẩy lên GitHub
+> ```
+>
+> Chưa biết Git? Dành 20 phút học 5 lệnh trên trước; phần còn lại của tài liệu giả định bạn đã biết.
+> Nếu dùng **Windows PowerShell 5.1** (mặc định của Windows), đọc thêm hộp ở §4.2 về `npm.cmd`.
 
 ### 0.2. Kết quả bạn sẽ tự làm được sau khi đọc hết
 
@@ -65,6 +79,14 @@ Không cần biết Docker, không cần server, không cần YAML trước đó
              ▼
    https://<user>.github.io/cicd-demo/   ← người dùng mở được
 ```
+
+| Từ trong sơ đồ | Nghĩa ngắn (giải thích kỹ ở mục) |
+| --- | --- |
+| **artifact** | file/thư mục được đóng gói để chuyển từ job này sang job khác (§3.9) |
+| **hash + inject** | tên file gắn mã hash nội dung; chèn commit/run/thời gian vào HTML lúc build (§5.2) |
+| **OIDC** | cách lấy token ngắn hạn để deploy, không cần lưu secret (§7.4) |
+| **smoke** | tự gọi thử URL vừa deploy để chắc nó thật sự chạy, không chỉ "API báo xong" (§7.8) |
+| **Step Summary** | báo cáo Markdown hiện ở tab Summary của run (§3.11) |
 
 Nguyên tắc cốt lõi của cả pipeline:
 
@@ -137,8 +159,11 @@ Sáu khái niệm, kèm ví dụ ngay trong repo:
 
 > Mỗi job là **một máy ảo hoàn toàn mới**. Job `test` không thấy file `node_modules` mà job `lint` vừa cài,
 > không thấy `dist/` mà job `build` vừa tạo. Muốn chuyển dữ liệu giữa các job phải dùng
-> **artifact** (`upload-artifact` → `download-artifact`) hoặc **cache**. Vì vậy trong workflow này
-> job nào cũng bắt đầu lại bằng `actions/checkout@v7` + `npm ci`.
+> **artifact** (`upload-artifact` → `download-artifact`) hoặc **cache**.
+>
+> Hệ quả cụ thể trong repo này: ba job `lint`/`test`/`build` đều bắt đầu bằng `actions/checkout@v7`
+> + `npm ci`; riêng job `deploy` **không** checkout mà tải artifact `site-dist`; job `report`
+> không cần code nên không checkout. Đó là lý do trong workflow mỗi job trông "tự lập" như vậy.
 
 Còn **step trong cùng job** thì dùng chung máy: `npm ci` ở step 3 thì step 4, 5 dùng lại `node_modules`.
 
@@ -159,7 +184,7 @@ jobs:
 # 4) Chuỗi có dấu ":" hoặc "#" phải bọc nháy
 name: "Build: bước 3"
 
-# 5) Số có số 0 đầu phải bọc nháy (nếu không thành số khác nghĩa)
+# 5) Version nên để dạng chuỗi trong nháy — YAML có thể hiểu '20' là số, '1.20' là số thực
 node-version: '20'
 ```
 
@@ -222,6 +247,8 @@ cicd-demo/
 ├── .gitignore                  # node_modules/, dist/ ... không commit
 ├── .gitattributes              # Ép line-ending LF — tránh Prettier đỏ trên Windows
 ├── .editorconfig               # 2 spaces, LF — thống nhất editor
+├── .prettierignore             # bỏ qua format cho dist/, *.md, package-lock.json
+├── LICENSE                     # MIT
 └── README.md                   # Giới thiệu + cách chạy
 ```
 
@@ -276,6 +303,38 @@ Nếu bạn dựng repo trên Windows mà bỏ qua bước này, rất có thể
 
 Mở file [.github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml) để đối chiếu. Chương này đi từ
 trên xuống dưới, gặp khối nào giải thích khối đó, kèm lý do **vì sao phải có** và **nếu bỏ thì sao**.
+
+### 3.0. Nhìn nhanh một job hoàn chỉnh trước
+
+Đừng đọc tuần tự ngay. Trước hết nhìn job `lint` — nó là **khuôn mẫu** cho mọi job khác:
+
+```yaml
+jobs:                              # khối chứa tất cả job
+  lint:                            # ← TÊN JOB (bạn tự đặt, chữ thường)
+    name: 1 · Lint & format        # tên hiển thị trên UI
+    runs-on: ubuntu-latest         # máy ảo do GitHub cấp
+    timeout-minutes: 10            # chết sau 10 phút nếu treo
+    steps:                         # danh sách bước, chạy tuần tự
+      - uses: actions/checkout@v7        # (1) kéo code repo vào máy ảo
+      - uses: actions/setup-node@v7      # (2) cài Node
+        with:
+          node-version: '22'
+          cache: npm                     # cache thư mục npm giữa các run
+      - run: npm ci                      # (3) cài dependency theo lockfile
+      - run: npm run lint:js             # (4) chạy lệnh shell
+      - run: npm run lint:html
+      - run: npm run lint:format
+```
+
+Đọc hiểu job này là bạn hiểu 80% mọi job còn lại. Bốn job sau chỉ khác nhau ở **3 thứ**:
+
+| Khác biệt | Job nào | Mục giải thích |
+| --- | --- | --- |
+| `needs:` (chờ job trước) | test, build, deploy, report | §3.6 |
+| `matrix` (nhân job ra) | test (Node 20 & 22) | §3.8 |
+| `if:` + `permissions` + `environment` | deploy, report | §3.10, §3.11 |
+
+Sau đây là chi tiết từng khối, từ trên xuống.
 
 ### 3.1. Năm khối ở cấp cao nhất
 
@@ -337,7 +396,18 @@ Chi tiết dễ nhầm:
   Demo này không dùng secret nên PR từ fork vẫn chạy được bình thường.
 - `workflow_dispatch` không có tham số `inputs:` → chạy như push. Muốn "deploy hay không deploy"
   bằng tay thì thêm `inputs:` (xem chương 10).
-- Muốn chạy theo lịch: `schedule: - cron: '0 2 * * *'` (giờ UTC).
+
+Muốn chạy theo lịch (giờ UTC — `0 2 * * *` là 02:00 sáng mỗi ngày):
+
+```yaml
+on:
+  schedule:
+    - cron: '0 2 * * *'
+```
+
+> Chú ý thụt lề: `schedule:` là khoá, `- cron:` là **một phần tử list** nằm ở dòng dưới và thụt vào
+> 2 space. Viết gộp `schedule: - cron: '...'` trên một dòng là **sai YAML** — lỗi rất hay gặp khi
+> dán từ tài liệu khác.
 
 ### 3.3. `permissions:` — nguyên tắc quyền tối thiểu (least privilege)
 
@@ -360,14 +430,16 @@ Vì vậy: khai báo quyền **ít nhất có thể** ở cấp workflow, và **
 ```
 
 > ⚠️ **Gotcha cực quan trọng:** quyền khai báo ở cấp job **thay thế toàn bộ** quyền cấp workflow,
-> không phải cộng dồn. Vì vậy job `deploy` phải khai báo lại `contents: read` — nếu không,
-> `actions/checkout` sẽ lỗi vì không đọc được repo.
+> không phải cộng dồn. Trong repo này job `deploy` khai báo lại `contents: read` dù nó **không**
+> dùng `actions/checkout` (chỉ tải artifact) — khai báo tường minh để không phụ thuộc hành vi mặc định.
+> Nếu sau này bạn thêm `actions/checkout@v7` vào job deploy mà quên `contents: read`, checkout sẽ lỗi
+> 403 ngay lập tức.
 
 Bảng quyền hay dùng:
 
 | Quyền | Dùng để | Job nào cần |
 | --- | --- | --- |
-| `contents: read` | checkout code | mọi job |
+| `contents: read` | checkout code (action kéo code repo về runner — xem §3.7) | mọi job |
 | `contents: write` | push commit/tag, tạo release | job release (nếu có) |
 | `pages: write` | deploy GitHub Pages | deploy |
 | `id-token: write` | xin OIDC token (đăng nhập không cần secret) | deploy |
@@ -402,6 +474,23 @@ có thể để lại trạng thái deployment dở dang. Pages chỉ cho 1 depl
 xếp hàng (`false`) là an toàn hơn.
 
 Đây là ví dụ điển hình của tư duy CI/CD: **CI thì huỷ, CD thì xếp hàng**.
+
+⚠️ Nhưng phải hiểu repo này có **hai tầng concurrency**, đừng gộp chúng làm một:
+
+| Tầng | Khai báo | Huỷ cái gì |
+| --- | --- | --- |
+| Cấp workflow | `CI/CD-${{ github.ref }}`, `cancel-in-progress: true` | Push mới **huỷ toàn bộ run** cùng nhánh, kể cả job deploy đang chạy |
+| Cấp job deploy | `pages`, `cancel-in-progress: false` | Không cho job deploy của run **khác** huỷ deployment đang chạy |
+
+Nghĩa là nhóm `pages` chỉ bảo vệ deployment khỏi một deployment khác — nó **không** chống được việc
+run cùng nhánh bị huỷ bởi push mới ở tầng workflow. Nếu cần deploy không bao giờ bị huỷ giữa chừng,
+hãy cho tầng workflow nhường nhánh main, ví dụ:
+
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+```
 
 ### 3.5. `env:` và hai loại "biến" — đừng lẫn
 
@@ -528,7 +617,9 @@ Một dòng `npm test` chạy **37 test** — chi tiết ở chương 6.
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: '22', cache: npm }
+        with:
+          node-version: ${{ env.NODE_VERSION }}   # dùng chung biến env khai báo ở đầu file
+          cache: npm
       - run: npm ci
       - run: npm run build            # ← sinh ra dist/
       - name: Kiểm tra output
@@ -607,7 +698,7 @@ Từng dòng đáng chú ý:
 | Dòng | Ý nghĩa | Nếu bỏ |
 | --- | --- | --- |
 | `needs: build` | Chỉ deploy khi build xanh | Deploy bản build cũ/mới nhất tuỳ ý — sai |
-| `if: event != 'pull_request' && ref == 'refs/heads/main'` | Chặn PR và chặn nhánh phụ | PR cũng deploy, ghi đè bản production |
+| `if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'` | Chặn PR và chặn nhánh phụ | PR cũng deploy, ghi đè bản production |
 | `permissions: pages: write` | Quyền ghi Pages | `deploy-pages` lỗi 403 |
 | `permissions: id-token: write` | Cho phép xin OIDC token | Không đăng nhập được bằng OIDC |
 | `environment: github-pages` | Gắn deployment vào environment chuẩn; tạo lịch sử deploy + có thể thêm approval | Deploy vẫn có thể chạy nhưng không có "cổng duyệt" |
@@ -680,19 +771,33 @@ Nhiều pipeline deploy xong báo xanh nhưng site vẫn trắng — bước nà
 | `needs.<job>.result` | Kết quả từng job: `success`, `failure`, `cancelled`, `skipped` |
 | Truyền qua `env:` | Tránh nhét `${{ }}` thẳng vào chuỗi có dấu ngoặc kép (an toàn shell hơn) |
 
-Bash function `icon()` map kết quả thành emoji; sau đó **exit 1 nếu có job lỗi**:
+Bash function `icon()` map kết quả thành emoji. Đoạn kiểm tra cuối **trích nguyên văn từ file thật**
+(`ci-cd.yml` dòng 283–296):
 
 ```bash
 failed=0
 for result in "$LINT" "$TEST" "$BUILD"; do
-  [ "$result" != "success" ] && failed=1
+  if [ "$result" != "success" ]; then
+    failed=1
+  fi
 done
-[ "$DEPLOY" = "failure" ] && failed=1    # deploy "skipped" trên PR không bị coi là lỗi
-[ "$failed" -ne 0 ] && exit 1
+if [ "$DEPLOY" = "failure" ]; then
+  failed=1
+fi
+
+if [ "$failed" -ne 0 ]; then
+  echo "❌ Pipeline có job thất bại" >&2
+  exit 1
+fi
+echo "✅ Pipeline xanh"
 ```
 
 Tại sao tách `DEPLOY` khỏi vòng lặp? Vì trên PR, `deploy` là `skipped` — nếu tính là lỗi thì
 mọi PR sẽ đỏ. Đây là ví dụ về **xử lý trạng thái `skipped` cho đúng**.
+
+> ⚠️ **Đừng "viết gọn" thành `[ "$failed" -ne 0 ] && exit 1`.** Với `set -euo pipefail`, khi
+> `failed=0` phép so sánh sai → cả dòng trả exit code 1 → **job đỏ dù mọi job xanh**. Đó là lý do
+> file thật dùng `if ... then ... fi` chứ không dùng `&&` — hãy copy đúng đoạn trên.
 
 ### 3.12. Biểu thức `${{ }}` — ngôn ngữ riêng của Actions
 
@@ -703,7 +808,7 @@ Trong workflow có **hai hệ biến khác nhau**, đừng lẫn:
         run: echo "Biến shell: $GITHUB_SHA"      # $VAR  = shell tính KHI chạy
 ```
 
-Các context dùng nhiều nhất:
+Các **context** (nhóm biến do Actions cung cấp — viết `${{ tên.thuộc_tính }}`) dùng nhiều nhất:
 
 | Context | Cho ra gì | Ví dụ |
 | --- | --- | --- |
@@ -728,6 +833,10 @@ Ví dụ thực tế:
       MATRIX: ${{ toJSON(matrix) }}
 ```
 
+> `[skip ci]` **không phải** tính năng sẵn có của GitHub Actions. Dòng `contains(...)` chỉ đúng khi
+> bạn tự viết điều kiện đó cho từng job — nó kiểm tra chuỗi commit message, không làm GitHub bỏ qua
+> workflow. Muốn bỏ qua thật thì dùng `paths-ignore` hoặc cấu hình ở chỗ khác.
+
 Ghi nhớ: `if:` **tự hiểu** là biểu thức, không bắt buộc bọc `${{ }}` (viết `if: github.ref == '...'`
 là đủ). Nhưng nếu viết trong `run:`/`with:`/`env:` thì **phải** bọc `${{ }}`.
 
@@ -750,7 +859,7 @@ Bảng lệnh hay dùng:
 | `::group::Tên` … `::endgroup::` | Gấp log thành khối |
 | `echo "X=1" >> $GITHUB_ENV` | Đặt env cho step sau |
 | `echo "k=v" >> $GITHUB_OUTPUT` | Đặt output cho job |
-| `echo "##[add-matcher]..."` | Hiếm dùng |
+| `echo "::add-matcher::<path>"` | Nạp file matcher để tô màu lỗi (hiếm dùng) |
 
 Annotation là cách **báo lỗi cho người đọc**, thay vì để họ lặn trong log 200 dòng.
 
@@ -814,6 +923,25 @@ Không có logic nào "chỉ tồn tại trên CI". Lợi ích:
 | `dev` | Serve `src/` trực tiếp (không build), hot-reload bằng F5 | Local |
 | `preview` | Build rồi serve `dist/` — **giống bản deploy** | Local, kiểm tra trước khi push |
 
+> 💻 **Windows PowerShell (mặc định Windows 10/11):** lệnh `npm`/`npx` có thể bị chặn với lỗi
+> `npm.ps1 cannot be loaded because running scripts is disabled`. Đây là **ExecutionPolicy** của máy,
+> không phải repo lỗi. Chọn 1 trong 3 cách:
+>
+> ```powershell
+> # 1) gọi thẳng bản .cmd — nhanh nhất, không đổi cấu hình máy
+> npm.cmd ci
+> npm.cmd run verify
+>
+> # 2) cho phép script của user hiện tại
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+>
+> # 3) dùng Git Bash hoặc WSL nếu đã cài
+> ```
+>
+> Các khối lệnh trong tài liệu viết theo **bash** (`npm ci`, `curl -fsS`, biến `$VAR`, `${SHA:0:7}`).
+> Trên PowerShell thuần, `curl` là alias của `Invoke-WebRequest` nên **không** nhận cờ `-fsS`; hãy
+> chạy các lệnh đó trong Git Bash, còn không thì chỉ cần quan tâm `npm.cmd`/`node` là đủ cho phần lớn bài.
+
 Hai lệnh `dev` và `preview` khác nhau ở chỗ:
 
 | | `npm run dev` | `npm run preview` |
@@ -847,7 +975,7 @@ Trong demo này, mình đã chạy:
 | Kiểm tra | Kết quả |
 | --- | --- |
 | `npm run lint` | 0 lỗi (sau khi thêm rule `doctype-style` + format) |
-| `npm test` | 37/37 pass, ~0.3 giây |
+| `npm test` | 37/37 pass, ~0,4 giây |
 | `npm run build` | 6 file, ~26 KB |
 | `git clone` sang thư mục khác + `npm ci` + `npm run verify` | Xin cả — **reproducible** |
 | `actionlint .github/workflows/ci-cd.yml` | 0 lỗi |
@@ -879,6 +1007,16 @@ node scripts/build.mjs && cat dist/build-info.json
 
 Không có biến `GITHUB_*` thì build script fallback về `git rev-parse HEAD` / `git branch` — vẫn ra
 metadata hợp lý cho local.
+
+> Dọn dẹp sau khi thử: các biến trên **vẫn còn** trong terminal đó, lần build sau sẽ tiếp tục dùng
+> metadata giả khiến bạn tưởng "build không cập nhật". Xoá chúng:
+>
+> ```powershell
+> Remove-Item Env:GITHUB_SHA, Env:GITHUB_RUN_NUMBER, Env:GITHUB_RUN_ID,
+>   Env:GITHUB_REPOSITORY, Env:GITHUB_REF_NAME, Env:GITHUB_ACTOR
+> ```
+>
+> hoặc đơn giản mở terminal mới (bash: `unset GITHUB_SHA GITHUB_RUN_NUMBER ...`).
 
 ### 4.6. `.gitignore` — đừng commit sản phẩm
 
@@ -1101,12 +1239,14 @@ Chạy cùng một commit 2 lần (xanh cả 2) thì **JS/CSS phải giống h�
 - Không phụ thuộc mạng (không tải font/CDN bên ngoài).
 - esbuild minify ổn định.
 
-Hệ quả thực tế: bạn thấy run #3 và #4 build ra **cùng tên file** `app.72ea2a6b.js` / `styles.3385b706.css`
-dù run number khác nhau — đó là dấu hiệu tốt: source không đổi thì sản phẩm không đổi.
+Ví dụ đã kiểm chứng: run #4 sinh ra `app.b6e43900.js` (3.770 B) và `styles.af71528c.css` (10.196 B);
+chạy `npm run build` tại commit đó trên máy local cũng ra **đúng hai tên file này** — cùng nội dung
+`src/` thì cùng hash. Ngược lại, bản trước khi sửa giao diện sinh ra `app.72ea2a6b.js` — nội dung đổi
+thì tên đổi, đó chính là cache busting hoạt động đúng. Test `build.test.mjs` đang kiểm tra tính chất này.
 
 ### 5.4. Khi build lỗi, nó báo gì
 
-Build script cố tình **fail to** (throw) trong các trường hợp:
+Build script cố tình **fail loudly** (throw) trong các trường hợp:
 
 | Tình huống | Thông báo |
 | --- | --- |
@@ -1137,14 +1277,18 @@ Trang tĩnh tưởng "hiển nhiên chạy", nhưng có rất nhiều thứ có 
 
 ### 6.2. Kim tự tháp test của repo này
 
-| Lớp | File | Số test | Chạy | Kiểm tra gì |
+| Lớp | File | Số test | Thời gian* | Kiểm tra gì |
 | --- | --- | --- | --- | --- |
-| Unit | `tests/unit/format.test.mjs` | 7 | ~10ms | hàm format ngày giờ, dung lượng, shorten SHA |
-| Unit | `tests/unit/pipeline.test.mjs` | 5 | ~5ms | state machine mô phỏng pipeline, phần trăm, nhãn |
-| Integration | `tests/integration/content.test.mjs` | 10 | ~50ms | hợp đồng HTML/CSS: cấu trúc, anchor, placeholder, asset |
-| Integration | `tests/integration/build.test.mjs` | 9 | ~1.5s | build thật vào tmp: file, hash, metadata, minify, kích thước |
-| Integration | `tests/integration/smoke.test.mjs` | 6 | ~2s | dựng server thật, `fetch` index/assets/404/path traversal |
-| **Tổng** | | **37** | **~0.3s** | |
+| Unit | `tests/unit/format.test.mjs` | 7 | ~150ms | hàm format ngày giờ, dung lượng, shorten SHA |
+| Unit | `tests/unit/pipeline.test.mjs` | 5 | ~110ms | state machine mô phỏng pipeline, phần trăm, nhãn |
+| Integration | `tests/integration/content.test.mjs` | 10 | ~120ms | hợp đồng HTML/CSS: cấu trúc, anchor, placeholder, asset |
+| Integration | `tests/integration/build.test.mjs` | 9 | ~250ms | build thật vào tmp: file, hash, metadata, minify, kích thước |
+| Integration | `tests/integration/smoke.test.mjs` | 6 | ~330ms | dựng server thật, `fetch` index/assets/404/path traversal |
+| **Tổng** | | **37** | **~0,4s** | |
+
+\* Thời gian đo bằng `Measure-Command` khi chạy từng file riêng, **đã gồm ~100ms khởi động Node**.
+Chạy cả bộ cùng lúc (`npm test`) nhanh hơn vì Node test runner chạy các file **song song**
+(trên máy demo: ~0,35–0,45 giây).
 
 Nguyên tắc phân loại:
 
@@ -1481,7 +1625,9 @@ Nếu 1 trong 3 sai → job đỏ → biết ngay deployment không thật sự 
 | --- | --- |
 | Kích thước site publish | ~1 GB |
 | Băng thông | ~100 GB/tháng (mềm) |
-| Build/giờ (kiểu branch) | 10 lần/giờ |
+| Build/giờ (kiểu deploy từ branch) | 10 lần/giờ — **không áp dụng** khi publish bằng Actions workflow (repo này) |
+| Thời gian deploy tối đa | 10 phút/lần; quá 10 phút coi như fail |
+| Số site | 1 site cho mỗi repo |
 | Custom domain | Có (CNAME + DNS) |
 | HTTPS | Tự động (Let's Encrypt) |
 | Server-side | ❌ không (không PHP/Node/DB) |
@@ -1507,7 +1653,8 @@ Với pipeline tự động, rollback = `git revert` + `git push`, ~1 phút sau 
 
 ### 8.1. Case study: run #1 đỏ và cách tìm ra trong 3 phút
 
-**Triệu chứng:** run #1 có 3 job xanh, job `4 · Deploy` đỏ, job `5 · Báo cáo` đỏ theo (đúng thiết kế).
+**Triệu chứng:** run #1 có **4 job xanh** (`lint`, `test` Node 20, `test` Node 22, `build`), job
+`4 · Deploy` đỏ, job `5 · Báo cáo` đỏ theo (đúng thiết kế).
 
 **Bước 1 — xác định job đỏ, không đọc cả log:**
 
@@ -1532,18 +1679,31 @@ step 5 Đóng gói artifact cho Pages     skipped
 step 6 Deploy lên GitHub Pages         skipped
 ```
 
-**Bước 3 — lấy thông báo lỗi chính xác (annotations):**
+**Bước 3 — lấy thông báo lỗi chính xác:**
 
-Trang HTML của run được render bằng JS, không chứa text lỗi trong HTML thô. Cách sạch để lấy lỗi
-là API `check-runs` + `annotations`:
+Cách nhanh nhất, không cần cài gì: mở job đỏ → mở step đỏ → GitHub hiện **ô Annotations** ở cuối step
+(hoặc tab "Annotations" của run) với đúng dòng `Error:` / `::error`. Log dài phía dưới chỉ là ngữ cảnh —
+**annotation là nguồn tin chính**.
+
+Nếu muốn lấy bằng API (khi cần tự động hoá), thay `<owner>/<repo>` và `<run_id>`:
 
 ```bash
-SHA=$(curl -s .../actions/runs/<run_id> | jq -r .head_sha)
-curl -s ".../commits/$SHA/check-runs?per_page=100" | jq -r '.check_runs[] | select(.name|startswith("4")) | .id'
-curl -s ".../check-runs/<check_id>/annotations" | jq -r '.[] | "\(.annotation_level): \(.message)"'
+# 1) head_sha của run
+curl -s "https://api.github.com/repos/<owner>/<repo>/actions/runs/<run_id>" | jq -r .head_sha
+
+# 2) check-run id (lọc theo tên job)
+curl -s "https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=100" \
+  | jq -r '.check_runs[] | select(.name|startswith("4")) | .id'
+
+# 3) annotations của check-run đó
+curl -s "https://api.github.com/repos/<owner>/<repo>/check-runs/<check_id>/annotations" \
+  | jq -r '.[] | "\(.annotation_level): \(.message)"'
 ```
 
-Kết quả:
+> `jq` và `curl` không có sẵn trên Windows PowerShell. Có `gh` CLI thì ngắn hơn nhiều:
+> `gh run view <run_id> --log-failed`. Không có gì thì cứ dùng UI — nhanh hơn cả API.
+
+Kết quả thật của run #1:
 
 ```
 failure: HttpError: Resource not accessible by integration
@@ -1610,8 +1770,16 @@ Một step có 3 phần:
 | `##[warning]` | Cảnh báo (ví dụ Node 20 deprecated) — không làm đỏ |
 | `Waiting for a runner to pick up this job...` | Job đang **xếp hàng**, không phải treo |
 
-Ví dụ thật trong demo: job `5 · Báo cáo` hiển thị `in_progress` hơn 3 phút nhưng **thời gian chạy
-thật chỉ 2 giây**. Đó là **thời gian chờ runner**, không phải job treo. Đừng vội "sửa" job vì thấy lâu.
+Phân biệt hai con số rất dễ nhầm: **thời gian chờ runner** và **thời gian chạy**.
+
+- Khi job đang xếp hàng, UI hiện banner `Waiting for a runner to pick up this job...`, còn danh sách job
+  có thể hiện `queued`. Job **không** treo — GitHub đang tìm máy trống.
+- Con số cạnh tên job (ví dụ `2s`) là thời gian **chạy thật**, không tính lúc chờ.
+- Ví dụ thật run #4: job `5 · Báo cáo` chờ runner khoảng **3 giây** rồi chạy **2 giây** — tổng thời gian
+  bạn thấy trên UI lớn hơn nhiều chỉ vì khoảng chờ giữa các job.
+
+Đừng vội "sửa" job chỉ vì thấy nó `queued` lâu. Nhưng nếu chờ **quá 10 phút** mà vẫn `queued` thì
+kiểm tra billing/quota runner hoặc re-run.
 
 ### 8.4. Công cụ nên có trong túi
 
@@ -1624,6 +1792,11 @@ thật chỉ 2 giây**. Đó là **thời gian chờ runner**, không phải job
 | **Artifacts** | Tải `site-dist.zip` xem trực tiếp | tab Artifacts của run |
 | **Step Summary** | Đọc báo cáo tổng hợp | tab Summary |
 | **Re-run failed jobs** | Chạy lại chỉ job đỏ (giữ artifact cũ) | nút trên UI |
+
+> Cài `actionlint` (Windows): tải file zip từ
+> <https://github.com/rhysd/actionlint/releases> (chọn `actionlint_<ver>_windows_amd64.zip`), giải nén
+> rồi chạy `.\actionlint.exe .github/workflows/ci-cd.yml`. Nếu chưa thêm vào PATH, gọi bằng đường dẫn
+> đầy đủ. `actionlint` không có trong npm nên đừng tìm bằng `npx`.
 
 Debug logging nâng cao: thêm secret `ACTIONS_STEP_DEBUG = true` vào repo → log chi tiết từng bước
 nội bộ của action.
@@ -1654,7 +1827,7 @@ nội bộ của action.
 Sửa code
   └─► npm run verify            (local, ~2 giây)
         └─► actionlint          (local, ~0.1 giây)
-              └─► git push      (CI, ~1.5 phút)
+              └─► git push      (CI, ~1 phút)   # run #4: 17:48:09 → 17:49:13 ≈ 64 giây
                     └─► xem job đỏ đầu tiên → quay lại
 ```
 
@@ -1744,7 +1917,8 @@ Khi đó: PR đỏ **không merge được** — đây là điểm khác biệt 
 | Pages | Miễn phí | Cần Pro/Team |
 | Runner | `ubuntu-latest` | Như nhau |
 
-Pipeline demo chạy ~1 phút 30 giây/lần, gồm 6 job (2 job test là matrix). Với repo public: 0 đồng.
+Pipeline demo chạy khoảng **1 phút/lần** (run #4: 64 giây từ lúc tạo đến khi xong), gồm **5 job / 6 lượt**
+(job `test` nhân 2 nhờ matrix). Với repo public: 0 đồng.
 
 ### 9.7. Vận hành hằng ngày
 
@@ -1792,17 +1966,29 @@ Chương này để bạn biết **nâng cấp theo hướng nào**, không ph�
 GitHub cho bạn đăng ký **máy của mình** làm runner. Khi đó `runs-on: self-hosted` sẽ chạy job
 trên máy đó, có toàn quyền filesystem/Docker — đúng nghĩa "deploy xuống server".
 
-Cài đặt (Settings → Actions → Runners → New self-hosted runner):
+Cài đặt (Settings → Actions → Runners → New self-hosted runner — GitHub hiện sẵn lệnh đúng cho máy bạn):
 
 ```bash
-# Linux
+# Linux / macOS
 mkdir actions-runner && cd actions-runner
-curl -o actions-runner.tar.gz -L https://github.com/actions/runner/releases/download/v2.x/actions-runner-linux-x64-2.x.tar.gz
-tar xzf actions-runner.tar.gz
-./config.sh --url https://github.com/<user>/<repo> --token <TOKEN>
+# tải actions-runner-linux-x64-<version>.tar.gz (hoặc osx-x64) theo link GitHub hiện ra
+tar xzf actions-runner-*.tar.gz
+./config.sh --url https://github.com/<owner>/<repo> --token <TOKEN>
 ./run.sh                       # chạy thử
 sudo ./svc.sh install && sudo ./svc.sh start   # chạy như service
 ```
+
+```powershell
+# Windows (PowerShell) — dùng bản win-x64
+New-Item -ItemType Directory actions-runner; Set-Location actions-runner
+# tải actions-runner-win-x64-<version>.zip theo link GitHub hiện ra, giải nén tại đây
+.\config.cmd --url https://github.com/<owner>/<repo> --token <TOKEN>
+.\run.cmd                      # chạy thử (mở PowerShell thứ hai nếu cần)
+# chạy như service: .\svc.cmd install ; .\svc.cmd start
+```
+
+> Đừng copy URL `v2.x` ở trên — mỗi thời điểm GitHub có version khác nhau. Luôn lấy đúng lệnh mà trang
+> **New self-hosted runner** hiện ra cho máy bạn.
 
 Workflow đổi đúng 1 dòng:
 
@@ -1980,53 +2166,87 @@ Mỗi bước chỉ **thêm job**, không phá cấu trúc hiện tại. Đó l�
 
 ---
 
-## 11. Checklist 20 bước tự dựng từ số 0
+## 11. Checklist tự dựng từ số 0
 
-Làm đúng thứ tự, mỗi bước có lệnh kiểm tra. In ra hoặc copy vào note.
+### 11.1. Chọn đường đi
+
+| Cách | Dành cho | Làm gì |
+| --- | --- | --- |
+| **A. Chạy theo repo mẫu** | Muốn thấy pipeline chạy trong 5 phút | Clone repo demo → `npm run verify` → đọc guide song song → làm Lab 1 |
+| **B. Dựng lại từ đầu** | Muốn hiểu tường tận | Làm checklist §11.3 theo đúng thứ tự |
+
+> Với cách B: các file dài (`scripts/build.mjs`, `scripts/serve.mjs`, `tests/**`) **hãy copy từ repo mẫu**
+> rồi đọc giải thích ở chương 5–6. Tài liệu dạy *cách hoạt động*, không in lại toàn bộ source; còn
+> config/package.json thì in đầy đủ ở **Phụ lục B (§14)** để bạn không phải đoán version.
+
+### 11.2. Chuẩn bị (bắt buộc)
+
+1. Cài **Node LTS** (≥ 20), **git**; có **tài khoản GitHub**.
+2. Trên GitHub: **New repository** → tên `cicd-demo` → **Public** → **không** tick README/gitignore/license.
+3. Ở máy: `git init -b main`, rồi `git remote add origin https://github.com/<owner>/cicd-demo.git`.
+4. Windows: nếu `npm` bị chặn ExecutionPolicy, dùng `npm.cmd` (xem §4.2).
+
+### 11.3. Checklist 24 bước — làm đến đâu xanh đến đó
+
+> Nguyên tắc: **bước sau chỉ bắt đầu khi bước trước xanh**. Dồn cả file workflow 297 dòng vào lần đầu
+> là cách nhanh nhất để bỏ cuộc.
 
 | # | Việc làm | Kiểm tra xong |
 | --- | --- | --- |
-| 1 | Cài Node LTS, git; tạo thư mục dự án | `node -v`, `git -v` |
-| 2 | `git init -b main` + tạo `.gitignore` (`node_modules/`, `dist/`, `.env`) | `git status` chỉ có file nguồn |
-| 3 | Viết `src/index.html`, `src/styles.css`, `src/app.js` chạy được ở local | mở file bằng trình duyệt thấy OK |
-| 4 | Tách logic thuần ra `src/lib/*.mjs` | app.js import được, không lỗi console |
-| 5 | Tạo `package.json` với `type: module` + devDependencies | `npm install` thành công |
-| 6 | Thêm 3 script lint (`eslint`, `html-validate`, `prettier`) | `npm run lint` xanh |
-| 7 | Viết `scripts/build.mjs`: bundle, hash, inject metadata | `npm run build` ra `dist/` đủ file |
-| 8 | Thêm `.nojekyll` + `build-info.json` trong build | `dist/.nojekyll` tồn tại |
-| 9 | Viết test unit cho lib | `node --test` xanh |
-| 10 | Viết test content cho HTML | test xanh |
-| 11 | Viết helper build vào tmp + test build output | test xanh, `git status` sạch |
-| 12 | Viết `scripts/serve.mjs` + test smoke HTTP | `fetch` local 200, 404, 403 traversal đúng |
-| 13 | Thêm script `verify` = lint + test + build | `npm run verify` xanh |
-| 14 | Tạo `.gitattributes` (`* text=auto eol=lf`) + `.editorconfig` | clone sạch vẫn lint xanh |
-| 15 | Viết `.github/workflows/ci-cd.yml`: chỉ job lint trước | push → job lint chạy |
-| 16 | Thêm job test (matrix Node) + `needs` | push → 2 job test xanh |
-| 17 | Thêm job build + `upload-artifact` | artifact tải được |
-| 18 | Bật Pages (Settings → Pages → Source: GitHub Actions) 1 lần | Pages UI báo enabled |
-| 19 | Thêm job deploy (permissions pages/id-token, environment) + precheck | push main → deploy xanh, URL live mở được |
-| 20 | Thêm job report + smoke test live + badge vào README | run xanh 5/5, badge "passing" |
+| 1 | Tạo thư mục dự án; `git init -b main` | `git status` chạy được |
+| 2 | Tạo `.gitignore` (`node_modules/`, `dist/`, `.env`), `.gitattributes` (`* text=auto eol=lf`), `.editorconfig` | `git status` chỉ có file nguồn |
+| 3 | Viết `src/index.html`, `src/styles.css`, `src/app.js`, tách logic ra `src/lib/*.mjs` | chưa cần chạy — sẽ serve ở bước 7 |
+| 4 | Tạo `package.json`: `type: module`, `engines.node >= 20`, các script như **Phụ lục B** | `node -p "require('./package.json').type"` → `module` |
+| 5 | Cài devDependencies (**Phụ lục B** có lệnh đầy đủ) | có `package-lock.json` — **bắt buộc commit** |
+| 6 | Thêm `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.htmlvalidate.json` (Phụ lục B) | `npm run lint:js` chạy (chưa cần xanh) |
+| 7 | Viết `scripts/serve.mjs` (copy repo mẫu, đọc §6.7) | `node scripts/serve.mjs src 5173` → mở `http://127.0.0.1:5173` thấy trang |
+| 8 | Sửa cho `npm run lint` xanh (format bằng `npx prettier --write .`) | `npm run lint` xanh |
+| 9 | Viết `scripts/build.mjs`: bundle, hash tên file, inject metadata (theo §5.2) | `npm run build` ra `dist/` đủ file |
+| 10 | Thêm `.nojekyll` + `build-info.json` vào build (đã có trong script mẫu) | `dist/.nojekyll` tồn tại, `build-info.json` đọc được |
+| 11 | Viết test unit cho `src/lib` (§6.3) | `node --test tests/unit` xanh |
+| 12 | Viết `tests/integration/content.test.mjs` (§6.5) | `npm test` xanh |
+| 13 | Viết helper build vào thư mục tạm + `build.test.mjs` (§6.4, §6.6) | `npm test` xanh, `git status` sạch |
+| 14 | Viết `smoke.test.mjs` dùng `serve.mjs` + `fetch` (§6.7) | `npm test` xanh, 6 test smoke |
+| 15 | Thêm script `verify` = lint + test + build | `npm run verify` xanh toàn bộ |
+| 16 | Commit tất cả (**kể cả `package-lock.json`**) và push lên GitHub | `git push -u origin main` thành công, repo có code |
+| 17 | Thêm workflow chỉ có job `lint` (§3.7) | Actions chạy, job lint xanh |
+| 18 | Thêm job `test` matrix Node 20/22 + `needs: lint` (§3.8) | 2 job test xanh |
+| 19 | Thêm job `build` + `upload-artifact` (§3.9) | artifact `site-dist` xuất hiện trong run |
+| 20 | Bật Pages: Settings → Pages → Source: **GitHub Actions** | trang Pages báo đã bật |
+| 21 | Thêm job `deploy`: permissions pages/id-token, environment, precheck (§3.10, §7.3) | push main → deploy xanh, URL mở được |
+| 22 | Thêm smoke test trang live + job `report` (§3.10, §3.11) | run 5/5 xanh, tab Summary có báo cáo |
+| 23 | Thêm badge README + smoke test 200 | badge hiện `passing` |
+| 24 | Bật branch protection: required checks là 3 job CI | PR đỏ không merge được |
 
-**Thứ tự này cố ý không nhảy cóc:** mỗi bước phải xanh rồi mới sang bước sau. Nếu dồn cả file
-workflow 297 dòng vào lần đầu, bạn sẽ khó biết lỗi ở đâu.
+### 11.4. Nếu bị kẹt
 
----
+| Hiện tượng | Làm gì |
+| --- | --- |
+| `npm ci` báo thiếu/lệch lockfile | Chạy `npm install`, commit `package-lock.json` |
+| `npm run lint` đỏ ở bước 6–8 | `npx prettier --write .` rồi sửa lỗi ESLint/html-validate còn lại |
+| Mở `src/index.html` bằng `file://` thấy trắng/Console đỏ | Bình thường: ES module bị CORS trên `file://`. Dùng `serve.mjs` (bước 7) |
+| Push lên rồi mà Actions không chạy | Kiểm tra file nằm đúng `.github/workflows/`, thụt lề YAML, `actionlint` |
+| Deploy đỏ `404 Get Pages site failed` | Chưa bật Pages — quay lại bước 20 |
+| Không thấy nút "Run workflow" | `workflow_dispatch` chỉ hiện khi file workflow đã có trên **nhánh mặc định** |
 
+Xong checklist này, bạn đã có pipeline tương đương demo. Tiếp theo làm **bài tập** ở chương 12 để
+biến nó thành kỹ năng.
 ## 12. Bài tập
 
-Bộ bài tập thực hành đầy đủ (8 lab, từ dễ đến khó) nằm ở **[BAI-TAP.md](BAI-TAP.md)**.
-
-Tóm tắt:
+Bộ bài tập thực hành đầy đủ (**Lab 0 → Lab 8**) nằm ở **[BAI-TAP.md](BAI-TAP.md)**.
+Đọc mục "Chuẩn bị" trong đó trước: bạn cần **fork repo** (không push được vào repo gốc), và biết lab nào
+phải làm trên `main` (vì chỉ push/merge vào `main` mới deploy) lab nào làm trên nhánh.
 
 | Lab | Nội dung | Học được |
 | --- | --- | --- |
-| 1 | Đổi nội dung trang, push, xem metadata đổi theo | Vòng lặp CI/CD cơ bản |
-| 2 | Làm pipeline đỏ bằng ESLint rồi sửa | Debug job đầu tiên |
-| 3 | Làm job Prettier đỏ, sửa bằng `prettier --write` | Format là gì |
+| 0 | Làm quen: đọc log, artifact, summary, trang live | Định hướng UI |
+| 1 | Đổi nội dung trang, push **main**, xem metadata đổi theo | Vòng lặp CI/CD cơ bản |
+| 2 | Làm pipeline đỏ bằng ESLint rồi sửa (trên nhánh + PR) | Debug job đầu tiên |
+| 3 | Làm job Prettier đỏ bằng nháy kép, sửa bằng `prettier --write` | Format là gì |
 | 4 | Thêm placeholder mới `__BUILD_ID__` | Build script + fail fast |
-| 5 | Thêm test mới cho `shortenSha` | Viết test với node:test |
+| 5 | Thêm test cho mốc thời gian 59s / 60s / 90s | Viết test với node:test |
 | 6 | Thêm matrix Node 24 | Matrix strategy |
-| 7 | Thêm `workflow_dispatch` input chọn theme deploy | Inputs, điều kiện |
+| 7 | Thêm `workflow_dispatch` input boolean `deploy` | Inputs, điều kiện |
 | 8 | Thêm job build Docker image (không push) | Container trong CI |
 
 ---
@@ -2042,6 +2262,15 @@ Tóm tắt:
 | Job | Nhóm step chạy trên một máy ảo |
 | Step | Một bước trong job (`uses:` hoặc `run:`) |
 | Action | Gói code tái sử dụng (`actions/checkout`) |
+| **Runner** | Máy chạy job: máy ảo GitHub hoặc self-hosted |
+| **Artifact** | File/thư mục được đóng gói để giữ lại hoặc chuyển giữa job |
+| **Cache** | Bộ nhớ đệm giữa các run (npm, build) — khác artifact ở chỗ có thể dùng lại nhiều lần |
+| **Matrix** | Nhân job theo tổ hợp biến (ví dụ Node 20 & 22) |
+| **Lockfile** | `package-lock.json` — ghi phiên bản chính xác; `npm ci` bắt buộc dùng file này |
+| **SHA / commit SHA** | Mã 40 ký tự định danh duy nhất một commit (vd `27fa679c...`) |
+| **PR (Pull Request)** | Đề nghị merge nhánh này vào nhánh khác; nơi CI chạy trước khi merge |
+| **DAG** | Đồ thị có hướng không chu trình — thứ tự job do `needs` tạo thành |
+| **Context** | Nhóm biến do Actions cung cấp (`${{ github.* }}`, `${{ needs.* }}`...) |
 | Runner | Máy chạy job (`ubuntu-latest` hoặc self-hosted) |
 | Artifact | File được giữ lại/chuyển giữa job |
 | Cache | Bộ nhớ đệm giữa các run (npm, build) |
@@ -2099,6 +2328,166 @@ bấm "Re-run failed jobs".
 - Tài liệu chính thức: <https://docs.github.com/actions>
 
 ---
+
+## 14. Phụ lục B: nguyên liệu copy-paste
+
+> Mục đích: gom mọi thứ "khô" (version, config, lệnh) để bạn dựng lại nhanh, không phải đoán.
+> Các file dài (`scripts/build.mjs`, `scripts/serve.mjs`, `tests/**`) hãy **copy từ repo mẫu** —
+> chúng đã được giải thích ở chương 5–6.
+
+### B.1. Cài dependency (bước 5 của checklist)
+
+```bash
+npm install --save-dev \
+  eslint@^10 @eslint/js@^10 globals@^17 \
+  prettier@^3 html-validate@^11 esbuild@^0.28
+```
+
+> Version trên khớp repo demo tại thời điểm viết (11/2026). Muốn bám **đúng** bản đã chạy xanh:
+> copy `package.json` + `package-lock.json` từ repo rồi chạy `npm ci`.
+
+### B.2. `package.json` đầy đủ
+
+```json
+{
+  "name": "cicd-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "lint:js": "eslint .",
+    "lint:html": "html-validate \"src/**/*.html\"",
+    "lint:format": "prettier --check .",
+    "lint": "npm run lint:js && npm run lint:html && npm run lint:format",
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "dev": "node scripts/serve.mjs src 5173",
+    "preview": "npm run build && node scripts/serve.mjs dist 4173",
+    "verify": "npm run lint && npm test && npm run build"
+  }
+}
+```
+
+`devDependencies` do lệnh B.1 tự thêm vào — không cần gõ tay.
+
+### B.3. `eslint.config.js`
+
+```js
+import js from '@eslint/js';
+import globals from 'globals';
+
+export default [
+  { ignores: ['node_modules/**', 'dist/**', 'tmp/**', 'coverage/**', '.tmp/**'] },
+  js.configs.recommended,
+  {
+    files: ['src/**/*.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.browser } },
+    rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_' }], eqeqeq: ['error', 'always'] },
+  },
+  {
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'eslint.config.js'],
+    languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
+    rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_' }], eqeqeq: ['error', 'always'] },
+  },
+];
+```
+
+### B.4. `.prettierrc.json` và `.prettierignore`
+
+```json
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "arrowParens": "always",
+  "endOfLine": "lf"
+}
+```
+
+```gitignore
+node_modules/
+dist/
+tmp/
+coverage/
+test-results/
+package-lock.json
+*.md
+```
+
+> Prettier bỏ qua `*.md` để bạn không phải format lại tài liệu/bảng — đây là lựa chọn có chủ ý.
+
+### B.5. `.htmlvalidate.json`
+
+```json
+{
+  "extends": ["html-validate:recommended"],
+  "rules": {
+    "no-inline-style": "off",
+    "doctype-style": ["error", { "style": "lowercase" }],
+    "attr-quotes": ["error", { "style": "double" }],
+    "void-style": ["error", { "style": "selfclosing" }],
+    "no-trailing-whitespace": "off"
+  }
+}
+```
+
+Vì sao `doctype-style: lowercase`? Prettier tự hạ `<!DOCTYPE html>` thành `<!doctype html>`;
+html-validate mặc định lại đòi uppercase → hai tool cãi nhau. Cấu hình về `lowercase` để cả hai đồng ý.
+Đây là bài học thật gặp trong demo (job lint đỏ vì đúng lỗi này).
+
+### B.6. `.gitignore` và `.gitattributes`
+
+```gitignore
+node_modules/
+dist/
+.tmp/
+test-results/
+coverage/
+.env
+.env.*
+*.log
+```
+
+```gitattributes
+* text=auto eol=lf
+```
+
+Sau khi thêm `.gitattributes` lần đầu, chuẩn hoá lại line ending (nếu repo đã có commit):
+
+```bash
+git add --renormalize .
+git commit -m "chore: chuan hoa line ending LF"
+```
+
+### B.7. Các file nên copy từ repo mẫu
+
+| File | Vì sao copy thay vì gõ | Đọc giải thích ở |
+| --- | --- | --- |
+| `scripts/build.mjs` | ~290 dòng, nhiều nhánh xử lý metadata/asset | §5.2 |
+| `scripts/serve.mjs` | ~170 dòng, có chống path traversal + MIME | §6.7 |
+| `tests/helpers/build.mjs` | helper build vào thư mục tạm | §6.4 |
+| `tests/unit/*.test.mjs`, `tests/integration/*.test.mjs` | 37 test — nên đọc để hiểu, copy để chạy | chương 6 |
+| `src/**` | trang demo; thay nội dung theo ý bạn | chương 2 |
+
+Cách nhanh nhất:
+
+```bash
+# clone repo mẫu ra thư mục tạm rồi copy những gì cần
+git clone https://github.com/LySyaoran/cicd-demo.git _demo
+cp -r _demo/scripts _demo/tests .
+cp -r _demo/src/. src/          # hoặc tự viết src của bạn
+rm -rf _demo
+```
+
+### B.8. Kiểm tra sau khi ghép
+
+```bash
+npm ci          # nếu đã copy package-lock.json
+npm run verify  # phải xanh: lint + 37 test + build
+```
+
+Nếu `npm test` báo thiếu file `src/...` thì bạn chưa copy đủ `src/lib/` — test import trực tiếp từ đó.
 
 ## Kết
 

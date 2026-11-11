@@ -51,13 +51,18 @@ jobs:
 | `schedule: [{ cron: '0 2 * * *' }]` | 02:00 UTC mỗi ngày |
 | `release: { types: [published] }` | Khi publish release |
 
-Lọc theo đường dẫn:
+Lọc theo đường dẫn — **chọn một trong hai**, GitHub không cho dùng đồng thời `paths` và `paths-ignore`
+cho cùng một event:
 
 ```yaml
   push:
     branches: [main]
-    paths: ['src/**']
-    paths-ignore: ['**.md', 'docs/**']
+    paths: ['src/**', 'scripts/**']      # chỉ chạy khi các path này đổi
+
+  # HOẶC:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']   # bỏ qua khi chỉ đổi docs
 ```
 
 ## 3. Job / step
@@ -172,12 +177,24 @@ npm ci                 # cài đúng lockfile (như CI)
 npm run verify         # lint + test + build
 npx prettier --write . # sửa format
 npx eslint . --fix     # sửa lỗi lint
-actionlint             # kiểm tra workflow (cài: choco/scoop/winget hoặc tải binary)
 gh run list            # (cần gh CLI) xem run
 gh run watch           # theo dõi run đang chạy
 gh run view <id> --log-failed
 act -j lint            # chạy workflow local bằng Docker (tuỳ chọn)
 ```
+
+`actionlint` (kiểm tra workflow trước khi push) **không có trên npm** — không dùng `npx actionlint`.
+Cài bằng cách tải binary từ <https://github.com/rhysd/actionlint/releases> rồi chạy:
+
+```powershell
+# Windows: sau khi giải nén actionlint_<ver>_windows_amd64.zip
+& "$env:TEMP\actionlint\actionlint.exe" .github/workflows/ci-cd.yml
+```
+
+> **Windows PowerShell 5.1:** nếu `npm` báo `npm.ps1 cannot be loaded because running scripts is
+> disabled`, dùng `npm.cmd` / `npx.cmd` hoặc chạy
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Các lệnh `curl -fsS`, `$VAR`, `${VAR:0:7}`
+> trong tài liệu là **bash** — chạy trong Git Bash hoặc WSL.
 
 ## 9. Exit code & shell
 

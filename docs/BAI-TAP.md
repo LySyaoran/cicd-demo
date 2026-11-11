@@ -1,268 +1,344 @@
 # Bài tập thực hành — CI/CD với GitHub Actions
 
-Làm trên **chính repo demo** (hoặc repo fork của bạn). Mỗi lab có:
+Làm trên **bản fork** của repo demo. Mỗi lab có: mục tiêu → các bước → kết quả mong đợi →
+**lệnh kiểm** → **đáp án ngắn** → tiêu chí xong.
 
-- **Mục tiêu** — bạn học được gì
-- **Các bước** — làm gì, sửa file nào
-- **Kết quả mong đợi** — thấy gì trên GitHub
-- **Gợi ý** — chỉ mở khi bí
-- **Tiêu chí xong** — tự chấm
+---
 
-> ⚠️ Trước khi lab 1, chắc chắn pipeline đang **xanh** và bạn đã biết lệnh `git push` lên repo.
-> Mỗi lab nên làm trên một nhánh: `git switch -c lab-1`.
+## Chuẩn bị (bắt buộc, đừng bỏ)
+
+### 1. Fork — bạn không push được vào repo gốc
+
+1. Mở <https://github.com/LySyaoran/cicd-demo> → bấm **Fork** → tạo bản của bạn.
+2. Clone **fork của bạn** (không phải repo gốc):
+
+```bash
+git clone https://github.com/<tên-bạn>/cicd-demo.git
+cd cicd-demo
+git remote -v      # phải thấy origin = fork của bạn
+```
+
+3. Nếu repo bạn clone từ máy đã có sẵn `origin` trỏ repo gốc, sửa lại:
+   `git remote set-url origin https://github.com/<tên-bạn>/cicd-demo.git`
+
+> Nếu chưa quen fork: đây chỉ là "bản sao repo dưới tài khoản bạn" để bạn có quyền push.
+> Không cần quyền gì từ tác giả gốc.
+
+### 2. Chạy thử ở local trước khi làm lab
+
+```bash
+npm ci
+npm run verify     # phải xanh: lint + 37 test + build
+```
+
+### 3. Chọn nhánh cho từng lab
+
+| Lab | Làm trên | Vì sao |
+| --- | --- | --- |
+| 0, 1, 4, 7 | **`main`** | Cần deploy thật / cần thấy nút **Run workflow** (chỉ hiện với workflow trên nhánh mặc định) |
+| 2, 3, 5, 6, 8 | nhánh riêng + PR | Học nhánh `pull_request`: CI chạy nhưng **không deploy** |
+
+Tạo nhánh: `git switch -c lab-2`
+
+> ⚠️ Push lên nhánh phụ thì **trang live sẽ không đổi** — đúng thiết kế (`if:` chặn deploy).
+> Đừng tưởng pipeline hỏng. Muốn thấy deploy: merge/push vào `main`.
+
+### 4. Windows
+
+Nếu `npm` báo `npm.ps1 cannot be loaded because running scripts is disabled` → dùng `npm.cmd`
+(xem hộp Windows ở `docs/HUONG-DAN.md` §4.2).
 
 ---
 
 ## Lab 0 — Làm quen (10 phút)
 
-**Mục tiêu:** hiểu vòng lặp cơ bản *sửa → push → CI chạy → xem kết quả*.
+**Mục tiêu:** biết tìm đúng 4 nơi: log, artifact, summary, trang live.
 
-1. Mở repo trên GitHub → tab **Actions** → vào run gần nhất, bấm từng job đọc log.
-2. Mở tab **Summary**, xem báo cáo bảng kết quả.
-3. Mở **Artifacts**, tải `site-dist.zip`, giải nén mở `index.html` → thấy thông tin build.
-4. Mở trang live, đối chiếu commit SHA trên trang với commit trong repo.
+1. Repo fork → tab **Actions** → mở run gần nhất (nếu fork chưa có run: vào **Actions** → chọn
+   workflow `CI/CD` → **Run workflow**).
+2. Mở từng job, bấm từng step đọc log.
+3. Tab **Summary** — xem báo cáo bảng kết quả.
+4. Phần **Artifacts** cuối trang run — tải `site-dist.zip`, giải nén, mở `index.html`.
+5. Mở trang live của fork: `https://<tên-bạn>.github.io/cicd-demo/` (nếu bật Pages ở lab 1).
 
-**Tiêu chí xong:** chỉ được vào đúng nơi chứa (1) log job, (2) artifact, (3) summary, (4) trang live.
-
----
-
-## Lab 1 — Vòng lặp CI/CD cơ bản (15 phút)
-
-**Mục tiêu:** thấy bằng chứng pipeline tự deploy thật.
-
-1. Sửa tiêu đề hero trong `src/index.html`:
-
-   ```html
-   <h1>Pipeline xanh,<br /><span class="gradient-text">deploy tự động!</span></h1>
-   ```
-
-2. Chạy local: `npm run verify` → phải xanh.
-3. Commit + push lên `main`.
-4. Đợi ~1-2 phút, mở trang live → chữ mới xuất hiện, **commit SHA trên trang đổi theo**.
-
-**Kết quả mong đợi:** run mới xanh; commit SHA, run number, thời gian build trên trang cập nhật.
-
-**Gợi ý:** nếu trang chưa đổi, chờ thêm 30s (CDN) rồi Ctrl+F5.
-
-**Tiêu chí xong:** trang live hiển thị đúng commit bạn vừa push (so khớp 7 ký tự đầu).
+**Kiểm:** chỉ đúng được nơi chứa (1) log job, (2) artifact, (3) summary, (4) trang live.
 
 ---
 
-## Lab 2 — Làm pipeline đỏ bằng ESLint, rồi sửa (15 phút)
+## Lab 1 — Vòng lặp CI/CD cơ bản (15 phút, trên `main`)
+
+**Mục tiêu:** thấy pipeline tự deploy và metadata đổi theo commit.
+
+1. Đổi hero cho **khác rõ rệt** (không chỉ dấu chấm):
+
+```html
+<h1>Pipeline xanh,<br /><span class="gradient-text">deploy tự động thật rồi!</span></h1>
+```
+
+2. Thêm một dòng mô tả dưới `lede`:
+
+```html
+<p class="muted">Lần sửa này do <strong>tôi</strong> push — xem SHA bên dưới thay đổi.</p>
+```
+
+3. `npm run verify` → xanh.
+4. `git add -A && git commit -m "test: doi noi dung hero" && git push` (lên `main`).
+5. Đợi ~1 phút, mở trang live, Ctrl+F5.
+
+**Kết quả mong đợi:** run xanh; hero đổi; **commit SHA / run number / thời gian build trên trang đổi theo**.
+
+**Lệnh kiểm:**
+
+```bash
+git rev-parse --short HEAD                     # SHA của bạn
+curl -s https://<tên-bạn>.github.io/cicd-demo/build-info.json   # (cần curl) xem shortCommit
+```
+
+**Đáp án ngắn:** trang live hiển thị đúng 7 ký tự đầu SHA bạn vừa push; `runNumber` tăng lên.
+
+**Tiêu chí xong:** trang live có chữ mới **và** SHA khớp commit của bạn.
+
+---
+
+## Lab 2 — Làm pipeline đỏ bằng ESLint (15 phút, nhánh + PR)
 
 **Mục tiêu:** đọc và sửa lỗi từ job lint.
 
-1. Thêm vào cuối `src/lib/format.mjs`:
+1. `git switch -c lab-2`, thêm vào cuối `src/lib/format.mjs`:
 
-   ```js
-   const unusedVariable = 42;
-   ```
+```js
+const unusedVariable = 42;
+```
 
-2. Chạy `npm run lint:js` → thấy lỗi `'unusedVariable' is assigned a value but never used`.
-3. Thử push lên nhánh `lab-2` và mở PR vào `main` → job `1 · Lint` đỏ.
-4. Sửa: xoá dòng đó (hoặc dùng biến đó thật), push lại → xanh.
+2. `npm run lint:js` → lỗi `'unusedVariable' is assigned a value but never used`.
+3. Push nhánh, mở PR vào `main` của **fork bạn** → job `1 · Lint` đỏ.
+4. Sửa (xoá dòng đó), push lại → xanh. Merge PR nếu muốn.
 
-**Gợi ý:** lỗi ESLint nằm ở dòng **cuối** cùng của log, có tên rule trong ngoặc.
+**Đáp án ngắn:** lỗi ESLint ở dòng **cuối** log, kèm tên rule; CI báo đúng file:dòng.
 
-**Tiêu chí xong:** giải thích được vì sao PR không tự deploy dù CI xanh.
-
----
-
-## Lab 3 — Prettier đỏ (10 phút)
-
-**Mục tiêu:** hiểu format check là gì và cách sửa đúng.
-
-1. Trong `src/app.js`, đổi một dòng thành sai format, ví dụ thêm dấu nháy đơn:
-
-   ```js
-   const THEME_KEY = "cicd-demo:theme";
-   ```
-
-2. `npm run lint:format` → đỏ (Prettier muốn `singleQuote`).
-3. Chạy `npx prettier --write src/app.js` → tự sửa.
-4. Chạy lại `npm run lint` → xanh. Push.
-
-**Gợi ý:** CI dùng `prettier --check` (chỉ báo), local dùng `--write` (tự sửa).
-
-**Tiêu chí xong:** bạn không bao giờ phải sửa format bằng tay nữa.
+**Tiêu chí xong:** giải thích được **vì sao PR không tự deploy** dù CI xanh (do `if:` của job deploy).
 
 ---
 
-## Lab 4 — Thêm placeholder mới vào build (20 phút)
+## Lab 3 — Prettier đỏ (10 phút, nhánh)
 
-**Mục tiêu:** hiểu build script, metadata injection và cơ chế fail-fast.
+**Mục tiêu:** hiểu `--check` vs `--write`.
 
-1. Trong `src/index.html`, thêm một dòng vào build card:
+1. `git switch -c lab-3`, trong `src/app.js` đổi dòng đầu thành **nháy kép**:
 
-   ```html
-   <div>
-     <dt>Build ID</dt>
-     <dd class="mono">__BUILD_ID__</dd>
-   </div>
-   ```
+```js
+const THEME_KEY = "cicd-demo:theme";
+```
 
-2. Chạy `npm run build` → build **fail** với `Còn placeholder chưa được thay: __BUILD_ID__`.
-3. Vào `scripts/build.mjs`, thêm vào object `replacements`:
+2. `npm run lint:format` → đỏ (Prettier cấu hình `singleQuote: true`).
+3. `npx prettier --write src/app.js` → tự đổi về nháy đơn.
+4. `npm run lint` → xanh.
 
-   ```js
-   __BUILD_ID__: `${meta.shortSha}-${meta.runNumber}`,
-   ```
+**Lệnh kiểm:** `npx prettier --check .` → "All matched files use Prettier code style!"
 
-4. Trong `tests/integration/content.test.mjs`, thêm `'__BUILD_ID__'` vào mảng placeholders.
-5. `npm run verify` → xanh. Push, xem trang live → thấy Build ID dạng `27fa679-4`.
-
-**Gợi ý:** đây chính là cách demo đã làm với `__TOTAL_SIZE__`.
-
-**Tiêu chí xong:** giải thích được vì sao build fail là **tính năng**, không phải lỗi.
+**Đáp án ngắn:** job lint đỏ nhưng **không** có nghĩa code sai — chỉ là format lệch quy ước.
 
 ---
 
-## Lab 5 — Viết test mới (20 phút)
+## Lab 4 — Thêm placeholder mới (20 phút, trên `main`)
 
-**Mục tiêu:** viết test với `node:test` không cần framework.
+**Mục tiêu:** hiểu build script, metadata injection, fail-fast.
 
-1. Mở `tests/unit/format.test.mjs`, thêm test cho trường hợp biên:
+1. Trong `src/index.html` (khu vực build card), thêm:
 
-   ```js
-   test('shortenSha không vượt quá độ dài chuỗi gốc', () => {
-     assert.equal(shortenSha('abc', 100), 'abc');
-   });
-   ```
+```html
+<div>
+  <dt>Build ID</dt>
+  <dd class="mono">__BUILD_ID__</dd>
+</div>
+```
 
-   (Trước tiên sửa `shortenSha` trong `src/lib/format.mjs` để pass nếu cần.)
+2. `npm run build` → **fail**: `Còn placeholder chưa được thay: __BUILD_ID__`.
+3. Trong `scripts/build.mjs`, thêm vào object `replacements`:
 
-2. Thêm test cho `formatRelativeTime` với mốc 90 giây → `'1 phút trước'` hoặc `'2 phút trước'`?
-   Kiểm tra `Math.round` để quyết định kỳ vọng đúng.
+```js
+__BUILD_ID__: `${meta.shortSha}-${meta.runNumber}`,
+```
 
-3. `npm test` → xanh, số test tăng lên 39.
+4. Trong `tests/integration/content.test.mjs`, thêm `'__BUILD_ID__'` vào mảng placeholders
+   (mảng này "khoá hợp đồng": bảo đảm HTML luôn còn chỗ để build tiêm).
+5. `npm run verify` → xanh. Push `main`, chờ deploy, xem trang live.
 
-**Gợi ý:** test phải **quyết định** hành vi, không chỉ chép lại output hiện tại một cách mù quáng.
+**Kết quả mong đợi:** Build ID dạng `<7-ký-tự-SHA-của-bạn>-<run-number>`; ví dụ với demo là `27fa679-4`,
+với bạn sẽ là SHA/run của bạn.
 
-**Tiêu chí xong:** `npm test` báo 39 test (hoặc hơn) và bạn giải thích được mỗi assert.
+**Đáp án ngắn:** build fail vì `PLACEHOLDER_PATTERN` quét thấy `__BUILD_ID__` còn sót — **tính năng
+an toàn**, không phải bug.
 
----
-
-## Lab 6 — Thêm Node 24 vào matrix (15 phút)
-
-**Mục tiêu:** matrix strategy và fail-fast.
-
-1. Sửa `.github/workflows/ci-cd.yml`:
-
-   ```yaml
-   matrix:
-     node-version: ['20', '22', '24']
-   ```
-
-2. Chạy `actionlint .github/workflows/ci-cd.yml` (nếu có) → không lỗi.
-3. Push nhánh `lab-6`, mở PR → thấy **3 job** test chạy song song.
-4. Thử đặt `fail-fast: true` rồi làm một version đỏ (ví dụ dùng API chỉ có ở 22) → quan sát
-   các job khác bị huỷ.
-
-**Kết quả mong đợi:** hiểu `fail-fast` ảnh hưởng gì tới thời gian và thông tin nhận được.
-
-**Tiêu chí xong:** giải thích được khi nào chọn `true`, khi nào `false`.
+**Tiêu chí xong:** giải thích được vì sao nên fail thay vì để trang hiện chữ `__BUILD_ID__`.
 
 ---
 
-## Lab 7 — Thêm input cho "Run workflow" (20 phút)
+## Lab 5 — Test mốc thời gian (20 phút, nhánh)
 
-**Mục tiêu:** `workflow_dispatch` + `inputs` + điều kiện `if`.
+**Mục tiêu:** viết test với `node:test`, hiểu `Math.round` tạo ranh giới.
+
+1. Thêm vào `tests/unit/format.test.mjs`:
+
+```js
+test('formatRelativeTime quanh mốc 1 phút', () => {
+  const now = Date.parse('2026-11-12T10:00:00.000Z');
+  const at = (ms) => new Date(now - ms).toISOString();
+
+  assert.equal(formatRelativeTime(at(59_000), now), 'vừa xong');
+  assert.equal(formatRelativeTime(at(60_000), now), '1 phút trước');
+  assert.equal(formatRelativeTime(at(90_000), now), '2 phút trước');
+});
+```
+
+2. Chạy `npm test` → xanh, số test tăng 37 → 38.
+
+**Câu hỏi tự trả lời:** vì sao 90 giây lại là "2 phút trước" mà không phải "1 phút trước"?
+(`Math.round` → 1.5 làm tròn lên 2.) Nếu muốn "1 phút trước", phải dùng `Math.floor` — thử đổi
+`formatRelativeTime` và xem test nào đỏ.
+
+**Lệnh kiểm:** `node --test tests/unit/format.test.mjs`
+
+**Đáp án ngắn:** test **quyết định hành vi**, không phải chép lại output. Đổi công thức làm test đỏ
+nghĩa là test đang bảo vệ đúng thứ cần bảo vệ.
+
+---
+
+## Lab 6 — Thêm Node 24 vào matrix (15 phút, nhánh)
+
+**Mục tiêu:** matrix strategy + `fail-fast`.
+
+1. Trong `.github/workflows/ci-cd.yml`:
+
+```yaml
+        node-version: ['20', '22', '24']
+```
+
+2. Kiểm tra YAML (nếu có actionlint), push nhánh, mở PR.
+3. Quan sát **3 job** test chạy song song.
+4. Đổi `fail-fast: true`, tạo lỗi chỉ ở Node 24 (ví dụ dùng API mới) → các job còn lại bị huỷ.
+
+**Kết quả mong đợi:** hiểu `fail-fast: false` giữ thông tin, `true` tiết kiệm thời gian.
+
+**Lệnh kiểm:** PR có 3 check `2 · Test (Node ...)`.
+
+**Đáp án ngắn:** matrix là **nhân job**, không phải nhân step; mỗi biến thể là một job riêng, tính phút riêng.
+
+---
+
+## Lab 7 — Thêm input cho "Run workflow" (20 phút, trên `main`)
+
+**Mục tiêu:** `workflow_dispatch` + `inputs` + `if`.
 
 1. Sửa trigger:
 
-   ```yaml
-   on:
-     push:
-       branches: [main]
-     pull_request:
-       branches: [main]
-     workflow_dispatch:
-       inputs:
-         deploy:
-           description: 'Deploy lên Pages?'
-           type: boolean
-           default: true
-   ```
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy lên Pages?'
+        type: boolean
+        default: true
+```
 
-2. Thêm điều kiện cho job deploy:
+2. Sửa `if:` của job deploy:
 
-   ```yaml
-   if: |
-     github.event_name != 'pull_request' &&
-     github.ref == 'refs/heads/main' &&
-     (github.event_name != 'workflow_dispatch' || inputs.deploy)
-   ```
+```yaml
+    if: |
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_dispatch' || inputs.deploy)
+```
 
-3. Push, vào Actions → **Run workflow** → chọn `deploy = false` → chạy.
-4. Quan sát: job deploy `skipped`, job report vẫn xanh.
+3. Push **main** (để workflow trên nhánh mặc định có input), rồi vào **Actions → CI/CD → Run workflow**,
+   chọn `deploy = false`.
 
-**Gợi ý:** biểu thức nhiều dòng dùng `|` (literal block) và phải giữ đúng thụt lề.
+**Kết quả mong đợi:** job deploy `skipped`, job report vẫn **xanh** (vì report chỉ coi `failure` là lỗi).
 
-**Tiêu chí xong:** chạy tay được 2 chế độ "có deploy" / "không deploy".
+**Lệnh kiểm:** run vừa chạy có 4 job xanh + 1 job skipped; nhấn thử với `deploy = true` → deploy chạy.
+
+**Đáp án ngắn:** `workflow_dispatch` chỉ hiện nút khi file workflow nằm trên nhánh mặc định.
+Biểu thức `||` short-circuit nên trên `push` (inputs rỗng) điều kiện vẫn đúng.
 
 ---
 
-## Lab 8 — Build Docker image trong CI (30 phút)
+## Lab 8 — Build Docker image trong CI (30 phút, nhánh)
 
 **Mục tiêu:** làm quen container trong pipeline (chưa cần server).
 
-> Lab này cần Docker **chạy trên runner GitHub** — không cần Docker ở máy bạn. Nhưng để test
-> local, cài Docker Desktop.
+> Cần Docker trên **runner GitHub** (có sẵn) — không cần Docker ở máy bạn.
 
-1. Tạo `Dockerfile` ở gốc repo:
+1. Tạo `Dockerfile` ở gốc:
 
-   ```dockerfile
-   FROM nginx:alpine
-   COPY dist/ /usr/share/nginx/html/
-   EXPOSE 80
-   ```
+```dockerfile
+FROM nginx:alpine
+COPY dist/ /usr/share/nginx/html/
+EXPOSE 80
+```
 
-2. Thêm job vào workflow (chỉ build, chưa push):
+2. Thêm job:
 
-   ```yaml
-   docker:
-     name: 6 · Docker image
-     needs: build
-     runs-on: ubuntu-latest
-     steps:
-       - uses: actions/checkout@v7
-       - uses: actions/download-artifact@v8
-         with:
-           name: site-dist
-           path: dist
-       - run: docker build -t cicd-demo:${GITHUB_SHA::7} .
-       - run: docker image ls
-   ```
+```yaml
+  docker:
+    name: 6 · Docker image
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: site-dist
+          path: dist
+      - run: docker build -t cicd-demo:${GITHUB_SHA::7} .
+      - run: docker image ls
+```
 
-3. Push → job docker chạy trên runner, build image thành công (chỉ trong runner, không lưu lại).
+3. Push nhánh, xem job docker trong run.
 
-**Gợi ý:** muốn thấy image thật sự thì thêm bước `docker save -o image.tar` rồi upload artifact,
-hoặc nâng cấp lên push GHCR (xem chương 10 của HUONG-DAN.md).
+**Kết quả mong đợi:** image build xong trong runner (log `docker image ls` có `cicd-demo:<sha>`).
 
-**Tiêu chí xong:** giải thích được vì sao pipeline cần artifact `site-dist` trước khi build Docker.
+**Đáp án ngắn:** job docker **phải** `needs: build` + tải artifact, vì máy ảo mới không có `dist/`.
+
+**Tiêu chí xong:** giải thích được tại sao `COPY dist/` sẽ fail nếu quên `download-artifact`.
 
 ---
 
-## Bài tập tổng hợp (nếu muốn đi xa)
-
-Chọn **một** trong các hướng sau và làm thành PR:
+## Bài tập tổng hợp (chọn 1, làm thành PR)
 
 | Hướng | Việc cần làm | Học được |
 | --- | --- | --- |
-| E2E | Thêm Playwright test chạy trên URL Pages sau deploy | Test browser thật trong CI |
-| Performance | Thêm Lighthouse CI, fail nếu điểm < 90 | Ngưỡng chất lượng |
-| Bảo mật | Thêm `npm audit --audit-level=high` | Supply chain |
-| Release | Tự tạo GitHub Release khi push tag `v*` | Artifact phát hành |
-| Preview | Deploy PR preview ra subfolder/Pages phụ | Nhiều environment |
-| Alerts | Gửi Slack/Discord khi pipeline đỏ | Observability |
+| E2E | Playwright test chạy trên URL Pages sau deploy | Test browser thật trong CI |
+| Performance | Lighthouse CI, fail nếu điểm < 90 | Ngưỡng chất lượng |
+| Bảo mật | `npm audit --audit-level=high` | Supply chain |
+| Release | GitHub Release khi push tag `v*` | Artifact phát hành |
+| Preview | Deploy PR preview ra Pages phụ | Nhiều environment |
+| Alerts | Slack/Discord khi pipeline đỏ | Observability |
 
 ---
 
-## Cách tự chấm điểm
+## Tự chấm điểm
 
-| Mức | Bạn đạt được |
+| Mức | Đạt được |
 | --- | --- |
 | Cơ bản | Lab 1–3: sửa → push → CI xanh/đỏ, đọc được log |
 | Khá | Lab 4–6: hiểu build script, viết được test, cấu hình matrix |
 | Tốt | Lab 7–8 + tổng hợp: tự thêm job mới vào pipeline |
-| Chuyên nghiệp | Tự dựng pipeline tương đương từ repo trống, không nhìn lại demo |
+| Chuyên nghiệp | Dựng lại pipeline tương đương từ repo trống, **không nhìn lại demo** (checklist chương 11 của HUONG-DAN.md) |
+
+**Bảng kết quả kỳ vọng nhanh:**
+
+| Lab | Dấu hiệu đúng |
+| --- | --- |
+| 1 | trang live đổi chữ + SHA khớp commit |
+| 2 | job Lint đỏ với `no-unused-vars`, sửa thì xanh |
+| 3 | `prettier --check` đỏ → `--write` → xanh |
+| 4 | build fail `Còn placeholder chưa được thay` → thêm replacement → xanh |
+| 5 | `npm test` báo 38 test |
+| 6 | PR có 3 job test |
+| 7 | deploy `skipped` khi input `false`, report vẫn xanh |
+| 8 | log job docker có `cicd-demo:<sha>` |

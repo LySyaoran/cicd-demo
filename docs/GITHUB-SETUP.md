@@ -17,7 +17,7 @@ Vào <https://github.com/settings/personal-access-tokens/new>:
    | --- | --- | --- |
    | **Contents** | Read and write | push code |
    | **Workflows** | Read and write | cập nhật file trong `.github/workflows/` |
-   | **Pages** | Read and write | bật/đổi source Pages (tuỳ chọn — action `configure-pages` cũng tự bật được) |
+   | **Pages** | Read and write | KHÔNG dùng để bật Pages — `GITHUB_TOKEN` không tạo được Pages site; quyền này chỉ cần nếu bạn tự gọi API bằng PAT có quyền quản trị repo |
    | **Metadata** | Read (mặc định) | bắt buộc |
 
 5. Generate token → copy chuỗi `github_pat_...`.

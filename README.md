@@ -88,6 +88,11 @@ npm run dev         # serve thẳng src/ ở :5173 (không cần build)
 
 Build khi chạy local sẽ lấy commit/branch từ git; trên Actions nó lấy `GITHUB_SHA`, `GITHUB_RUN_NUMBER`, `GITHUB_REPOSITORY`... để tiêm vào trang và `dist/build-info.json`.
 
+> 💻 **Windows PowerShell:** nếu `npm` báo `npm.ps1 cannot be loaded because running scripts is disabled`
+> (ExecutionPolicy), dùng `npm.cmd run verify`, `npm.cmd ci`... hoặc chạy
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Các khối lệnh dùng `curl`/`$VAR` trong tài liệu
+> là **bash** — chạy trong Git Bash/WSL. Chi tiết: [HUONG-DAN §4.2](docs/HUONG-DAN.md).
+
 ## Deploy không cần server
 
 GitHub Pages là static hosting miễn phí, không cần VPS/nginx. Pipeline đẩy artifact lên đó qua các action chính thức:
