@@ -32,7 +32,7 @@ Chi tiết từng job:
 | 1 | `lint` | mọi lần chạy | `eslint`, `html-validate`, `prettier --check` | log của 3 step |
 | 2 | `test` | sau lint | `node --test` trên **Node 20 & 22** (37 test): unit, test nội dung HTML, build thật vào tmp, smoke test HTTP bằng server tự viết | 2 check xanh trong tab Tests |
 | 3 | `build` | sau test | minify JS/CSS bằng esbuild, gắn hash nội dung vào tên file, tiêm metadata, upload artifact `site-dist` | artifact tải được ở trang run |
-| 4 | `deploy` | chỉ `main` | tải artifact, `upload-pages-artifact`, deploy bằng OIDC | URL Pages + environment `github-pages` |
+| 4 | `deploy` | chỉ `main` | tải artifact, `upload-pages-artifact`, deploy bằng OIDC, **smoke test trang live** (curl URL Pages, kiểm tra đúng commit SHA) | URL Pages + environment `github-pages` |
 | 5 | `report` | `always()` | bảng kết quả 4 job vào GitHub Step Summary | tab Summary của run |
 
 > PR vào `main` sẽ chạy job 1 → 3, **không deploy**. Chỉ push/merge vào `main` mới deploy thật.

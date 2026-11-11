@@ -182,6 +182,32 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Smoke test trang live
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          BASE_URL="${PAGE_URL%/}"
+
+          # CDN của Pages có thể trễ vài giây sau khi deploy xong.
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 15 "$BASE_URL/" -o /tmp/live.html; then
+              echo "✅ Trang live phản hồi 200 (lần thử $attempt)"
+              break
+            fi
+            echo "⏳ Chưa truy cập được, thử lại sau 5s (lần $attempt/6)…"
+            sleep 5
+          done
+
+          test -s /tmp/live.html
+          grep -q "$SHORT_SHA" /tmp/live.html
+          curl -fsS --max-time 15 "$BASE_URL/build-info.json" -o /tmp/build-info.json
+          grep -q "$COMMIT_SHA" /tmp/build-info.json
+
+          echo "✅ Trang live đang phục vụ đúng commit $SHORT_SHA"
+
       - name: Ghi URL vào step summary
         run: |
           set -euo pipefail
@@ -189,6 +215,8 @@ jobs:
             echo "### 🚀 Deploy thành công"
             echo ""
             echo "🌐 **${{ steps.deployment.outputs.page_url }}**"
+            echo ""
+            echo "Smoke test: trang live trả về 200 và chứa đúng commit \`${{ github.sha }}\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
