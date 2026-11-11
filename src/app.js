@@ -27,9 +27,14 @@ const storage = {
 /* ------------------------------------------------------------------ */
 
 function resolveTheme() {
+  const fromUrl = new URLSearchParams(window.location.search).get('theme');
+  if (fromUrl === 'light' || fromUrl === 'dark') return fromUrl;
+
   const stored = storage.get(THEME_KEY);
   if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+
+  // Mặc định dark cho đúng "chất dev"; người dùng có thể bấm nút để đổi.
+  return 'dark';
 }
 
 function applyTheme(theme) {
@@ -61,10 +66,6 @@ function hydrateRelativeTimes() {
 function hydrateBuildInfo() {
   document.querySelectorAll('[data-build-time]').forEach((element) => {
     element.textContent = formatDateTime(element.dataset.buildTime);
-  });
-
-  document.querySelectorAll('[data-build-time-title]').forEach((element) => {
-    element.title = formatDateTime(element.dataset.buildTimeTitle);
   });
 
   hydrateRelativeTimes();

@@ -446,6 +446,10 @@ p {
   letter-spacing: 0.1em;
 }
 
+.build-grid > div {
+  min-width: 0;
+}
+
 .build-grid dd {
   display: flex;
   align-items: center;
@@ -453,6 +457,7 @@ p {
   gap: 0.5rem;
   margin: 0.4rem 0 0;
   font-size: 0.98rem;
+  overflow-wrap: anywhere;
 }
 
 .build-grid dd .muted {

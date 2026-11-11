@@ -112,7 +112,9 @@
         <div class="build-card">
           <div class="build-card-head">
             <span class="badge"><span class="dot" aria-hidden="true"></span> deployed</span>
-            <span class="muted" data-build-time-title="__BUILD_TIME__">__BUILD_TIME__</span>
+            <span class="muted">
+              <span data-relative-time="__BUILD_TIME__" title="__BUILD_TIME__">vừa xong</span>
+            </span>
           </div>
           <dl class="build-grid">
             <div>
@@ -124,8 +126,9 @@
                   target="_blank"
                   rel="noopener noreferrer"
                   data-sha="__COMMIT_SHA__"
+                  title="__COMMIT_SHA__"
                   id="commit-link"
-                  >__COMMIT_SHA__</a
+                  >__SHORT_SHA__</a
                 >
                 <button class="copy-btn" id="copy-sha" type="button" aria-label="Copy commit SHA">
                   Copy
@@ -269,7 +272,8 @@
     <footer class="site-footer">
       <div class="wrap footer-inner">
         <p>
-          Build <code>__SHORT_SHA__</code> · <time datetime="__BUILD_TIME__">__BUILD_TIME__</time>
+          Build <code>__SHORT_SHA__</code> ·
+          <time datetime="__BUILD_TIME__" data-build-time="__BUILD_TIME__">__BUILD_TIME__</time>
         </p>
         <p class="muted">
           Demo CI/CD · <a href="__REPO_URL__" target="_blank" rel="noopener noreferrer">repo</a> ·
