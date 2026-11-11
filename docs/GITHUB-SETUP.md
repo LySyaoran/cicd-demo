@@ -50,19 +50,21 @@ git push -u origin main
 
 Push lần đầu sẽ kích hoạt run đầu tiên ngay.
 
-## 4. Bật GitHub Pages
+## 4. Bật GitHub Pages (bắt buộc, một lần)
 
-Có 2 cách:
+Vào repo → **Settings** → **Pages** → Build and deployment → **Source: GitHub Actions**.
+Không cần chọn branch, không cần thư mục — pipeline sẽ tự đẩy artifact lên.
 
-**Cách 1 (khuyến nghị) — để pipeline tự bật:** workflow đã có `configure-pages` với `enablement: true`,
-nên job deploy sẽ tự gọi API bật Pages với `build_type: workflow`.
-
-**Cách 2 — bật tay:** Settings → **Pages** → Build and deployment → Source: **GitHub Actions**.
-Không cần chọn branch, không cần thư mục.
+> **Vì sao phải làm tay?** `GITHUB_TOKEN` mà Actions cấp cho workflow không có quyền
+> *Create Pages site* (`Resource not accessible by integration`). Đây là giới hạn bảo mật của GitHub:
+> bật Pages là thao tác quản trị repo, phải do con người (hoặc token có quyền admin) làm một lần.
+>
+> Nếu quên bước này, job deploy sẽ **đỏ ngay ở bước "Kiểm tra GitHub Pages đã bật"** với thông báo
+> chỉ đúng vào Settings → Pages — không còn lỗi mơ hồ như trước.
 
 Sau khi deploy xong, URL có dạng `https://<owner>.github.io/cicd-demo/`.
 
-Nếu muốn bật bằng API:
+Nếu muốn bật bằng API (cần token có quyền quản trị repo, không dùng `GITHUB_TOKEN` của Actions):
 
 ```bash
 curl -X POST https://api.github.com/repos/<owner>/cicd-demo/pages \
@@ -70,6 +72,10 @@ curl -X POST https://api.github.com/repos/<owner>/cicd-demo/pages \
   -H "Accept: application/vnd.github+json" \
   -d '{"build_type":"workflow"}'
 ```
+
+> Bài học từ lần chạy đầu tiên của chính demo này: bước "Cấu hình GitHub Pages" thất bại với
+> `HttpError: Resource not accessible by integration` vì repo chưa bật Pages. Đó là lý do pipeline
+> hiện có thêm bước precheck riêng.
 
 ## 5. Theo dõi run
 

@@ -81,13 +81,20 @@ Build khi chạy local sẽ lấy commit/branch từ git; trên Actions nó lấ
 
 ## Deploy không cần server
 
-GitHub Pages là static hosting miễn phí, không cần VPS/nginx. Pipeline đẩy artifact lên đó qua 3 action chính thức:
+GitHub Pages là static hosting miễn phí, không cần VPS/nginx. Pipeline đẩy artifact lên đó qua các action chính thức:
 
-- `actions/configure-pages@v5` — cấu hình/bật Pages (`enablement: true`)
-- `actions/upload-pages-artifact@v3` — đóng gói `dist/`
-- `actions/deploy-pages@v4` — deploy, trả về `page_url`
+- `actions/configure-pages@v6` — đọc cấu hình Pages của repo
+- `actions/upload-pages-artifact@v5` — đóng gói `dist/`
+- `actions/deploy-pages@v5` — deploy, trả về `page_url`
 
-Điều kiện: repo **public** (Pages cho repo private yêu cầu GitHub Pro/Team), Pages source = **GitHub Actions**.
+Điều kiện (bắt buộc, chỉ làm **một lần** cho mỗi repo):
+
+1. Repo **public** (Pages cho repo private yêu cầu GitHub Pro/Team).
+2. Vào **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+> `GITHUB_TOKEN` của Actions **không có quyền tạo Pages site** (`Resource not accessible by integration`),
+> nên không thể tự bật Pages từ workflow. Vì vậy job deploy có bước **Kiểm tra GitHub Pages đã bật**
+> để báo lỗi rõ ràng nếu bạn quên bước 2.
 
 ### Khi nào cần server thật?
 
@@ -117,7 +124,8 @@ Demo này chỉ có frontend tĩnh. Nếu sau này thêm API/database thì pipel
 
 | Lỗi | Nguyên nhân | Cách xử lý |
 | --- | --- | --- |
-| `Get Pages site failed` | Pages chưa bật hoặc source không phải GitHub Actions | Settings → Pages → Source: **GitHub Actions**, hoặc để `configure-pages` bật hộ (`enablement: true`) |
+| `Resource not accessible by integration` | Bật Pages bằng `GITHUB_TOKEN` — không được phép | Bật Pages trong **Settings → Pages** (một lần), giữ nguyên bước precheck |
+| `Get Pages site failed` | Pages chưa bật hoặc source không phải GitHub Actions | Settings → Pages → Source: **GitHub Actions** |
 | `Resource not accessible by integration` | Thiếu quyền trong workflow | Kiểm tra `permissions` của job deploy |
 | Deploy bị `skipped` | Không phải push lên `main` (PR/branch khác) | Đúng thiết kế; merge vào `main` để deploy |
 | `npm ci` fail | `package-lock.json` lệch `package.json` | Chạy `npm install` rồi commit lại lockfile |
