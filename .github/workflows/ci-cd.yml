@@ -1,0 +1,248 @@
+name: CI/CD
+
+# Pipeline gồm 5 job:
+#   lint  → test (matrix Node 20/22) → build (artifact) → deploy (GitHub Pages) → report
+# Chỉ job deploy chạy trên main; pull_request dừng ở bước build.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Quyền tối thiểu cho mặc định; job deploy tự nâng quyền pages/id-token.
+permissions:
+  contents: read
+
+# Push liên tiếp lên cùng nhánh sẽ huỷ run cũ đang chạy.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. Lint & format
+  # ------------------------------------------------------------------
+  lint:
+    name: 1 · Lint & format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Cài dependencies
+        run: npm ci --no-audit --fund=false
+
+      - name: ESLint
+        run: npm run lint:js
+
+      - name: html-validate
+        run: npm run lint:html
+
+      - name: Prettier (format check)
+        run: npm run lint:format
+
+  # ------------------------------------------------------------------
+  # 2. Test trên nhiều phiên bản Node
+  # ------------------------------------------------------------------
+  test:
+    name: 2 · Test (Node ${{ matrix.node-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Cài dependencies
+        run: npm ci --no-audit --fund=false
+
+      - name: Unit + integration tests
+        run: npm test
+
+  # ------------------------------------------------------------------
+  # 3. Build site và upload artifact
+  # ------------------------------------------------------------------
+  build:
+    name: 3 · Build & artifact
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Cài dependencies
+        run: npm ci --no-audit --fund=false
+
+      - name: Build site
+        run: npm run build
+
+      - name: Kiểm tra output
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -f dist/.nojekyll
+          test -f dist/build-info.json
+          echo "Tổng dung lượng dist: $(du -sh dist | cut -f1)"
+          find dist -type f | sort
+
+      - name: Upload artifact site-dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Ghi step summary
+        run: |
+          set -euo pipefail
+          {
+            echo "### 📦 Artifact \`site-dist\` đã sẵn sàng"
+            echo ""
+            echo "| Mục | Giá trị |"
+            echo "| --- | --- |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Run | #${{ github.run_number }} |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Tải artifact | [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # 4. Deploy lên GitHub Pages (chỉ trên main)
+  # ------------------------------------------------------------------
+  deploy:
+    name: 4 · Deploy → GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Tải artifact từ job build
+        uses: actions/download-artifact@v4
+        with:
+          name: site-dist
+          path: dist
+
+      - name: Kiểm tra artifact
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          ls -la dist dist/assets
+
+      - name: Cấu hình GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Đóng gói artifact cho Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy lên GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Ghi URL vào step summary
+        run: |
+          set -euo pipefail
+          {
+            echo "### 🚀 Deploy thành công"
+            echo ""
+            echo "🌐 **${{ steps.deployment.outputs.page_url }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # 5. Báo cáo tổng hợp
+  # ------------------------------------------------------------------
+  report:
+    name: 5 · Báo cáo pipeline
+    needs: [lint, test, build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+          BUILD: ${{ needs.build.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+        run: |
+          set -euo pipefail
+          icon() {
+            case "$1" in
+              success) echo "✅ success" ;;
+              failure) echo "❌ failure" ;;
+              cancelled) echo "⚪ cancelled" ;;
+              skipped) echo "⏭️ skipped" ;;
+              *) echo "❔ $1" ;;
+            esac
+          }
+          {
+            echo "## 🧾 Kết quả pipeline"
+            echo ""
+            echo "| Job | Kết quả |"
+            echo "| --- | --- |"
+            echo "| 1 · Lint | $(icon "$LINT") |"
+            echo "| 2 · Test | $(icon "$TEST") |"
+            echo "| 3 · Build | $(icon "$BUILD") |"
+            echo "| 4 · Deploy | $(icon "$DEPLOY") |"
+            echo ""
+            echo "_Commit \`${{ github.sha }}\` · run #${{ github.run_number }}_"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          for result in "$LINT" "$TEST" "$BUILD"; do
+            if [ "$result" != "success" ]; then
+              failed=1
+            fi
+          done
+          if [ "$DEPLOY" = "failure" ]; then
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "❌ Pipeline có job thất bại" >&2
+            exit 1
+          fi
+          echo "✅ Pipeline xanh"

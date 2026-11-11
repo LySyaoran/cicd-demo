@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="CI/CD Demo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38bdf8" />
+      <stop offset="1" stop-color="#a78bfa" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="#0b1020" />
+  <rect
+    x="1.6"
+    y="1.6"
+    width="28.8"
+    height="28.8"
+    rx="8"
+    fill="none"
+    stroke="url(#g)"
+    stroke-width="2"
+  />
+  <path
+    d="M9 16.6 13.2 20.8 23 11"
+    fill="none"
+    stroke="url(#g)"
+    stroke-width="2.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

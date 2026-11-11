@@ -1,0 +1,37 @@
+import js from '@eslint/js';
+import globals from 'globals';
+
+export default [
+  {
+    ignores: ['node_modules/**', 'dist/**', 'tmp/**', 'coverage/**', '.tmp/**'],
+  },
+  js.configs.recommended,
+  {
+    files: ['src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      eqeqeq: ['error', 'always'],
+    },
+  },
+  {
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'eslint.config.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      eqeqeq: ['error', 'always'],
+    },
+  },
+];

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CI/CD Demo — Pipeline xanh, deploy tự động</title>
+    <meta
+      name="description"
+      content="Trang demo CI/CD thật trên GitHub Actions: lint, test, build rồi deploy tự động lên GitHub Pages. Mỗi bản deploy hiển thị commit, run number và thời điểm build để chứng minh pipeline đã chạy thật."
+    />
+    <meta name="author" content="__ACTOR__" />
+    <meta name="theme-color" content="#070b14" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <span class="brand">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <rect
+              x="1.5"
+              y="1.5"
+              width="29"
+              height="29"
+              rx="9"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <path
+              d="M9 16.5 13 20.5 23 10.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          CI/CD <em>Demo</em>
+        </span>
+        <nav class="site-nav" aria-label="Điều hướng chính">
+          <a href="#pipeline">Pipeline</a>
+          <a href="#build">Bản build</a>
+          <a href="__REPO_URL__" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
+        <button
+          class="icon-btn"
+          id="theme-toggle"
+          type="button"
+          aria-pressed="false"
+          aria-label="Chuyển sang giao diện sáng"
+          title="Đổi giao diện sáng/tối"
+        >
+          <span class="icon-btn-glyph" aria-hidden="true">☾</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="wrap hero-inner">
+          <p class="eyebrow">
+            <span class="pulse" aria-hidden="true"></span> GitHub Actions · CI/CD
+          </p>
+          <h1>Pipeline xanh,<br /><span class="gradient-text">deploy tự động.</span></h1>
+          <p class="lede">
+            Mỗi lần push lên <code>main</code>, GitHub Actions tự động lint, test, build rồi deploy
+            trang này lên GitHub Pages. Không server riêng, không thao tác tay.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="__RUN_URL__" target="_blank" rel="noopener noreferrer"
+              >Xem workflow run ↗</a
+            >
+            <a class="btn btn-ghost" href="__REPO_URL__" target="_blank" rel="noopener noreferrer"
+              >Mã nguồn</a
+            >
+          </div>
+          <dl class="hero-stats">
+            <div>
+              <dt>Commit</dt>
+              <dd>__SHORT_SHA__</dd>
+            </div>
+            <div>
+              <dt>Run</dt>
+              <dd>#__RUN_NUMBER__</dd>
+            </div>
+            <div>
+              <dt>Nhánh</dt>
+              <dd>__BRANCH__</dd>
+            </div>
+            <div>
+              <dt>Phiên bản</dt>
+              <dd>v__VERSION__</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="hero-glow" aria-hidden="true"></div>
+      </section>
+
+      <section class="section wrap" id="build" aria-labelledby="build-title">
+        <div class="section-head">
+          <h2 id="build-title">Bản build đang chạy</h2>
+          <p>
+            Toàn bộ số liệu bên dưới được <strong>tiêm vào lúc build</strong> bởi
+            <code>scripts/build.mjs</code>. Nếu bạn đang thấy một commit khác với repo, nghĩa là
+            pipeline đã deploy thật.
+          </p>
+        </div>
+        <div class="build-card">
+          <div class="build-card-head">
+            <span class="badge"><span class="dot" aria-hidden="true"></span> deployed</span>
+            <span class="muted" data-build-time-title="__BUILD_TIME__">__BUILD_TIME__</span>
+          </div>
+          <dl class="build-grid">
+            <div>
+              <dt>Commit</dt>
+              <dd>
+                <a
+                  class="mono"
+                  href="__COMMIT_URL__"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-sha="__COMMIT_SHA__"
+                  id="commit-link"
+                  >__COMMIT_SHA__</a
+                >
+                <button class="copy-btn" id="copy-sha" type="button" aria-label="Copy commit SHA">
+                  Copy
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Nhánh</dt>
+              <dd class="mono">__BRANCH__</dd>
+            </div>
+            <div>
+              <dt>Workflow run</dt>
+              <dd>
+                <a class="mono" href="__RUN_URL__" target="_blank" rel="noopener noreferrer"
+                  >#__RUN_NUMBER__</a
+                >
+              </dd>
+            </div>
+            <div>
+              <dt>Build lúc</dt>
+              <dd>
+                <time datetime="__BUILD_TIME__" data-build-time="__BUILD_TIME__"
+                  >__BUILD_TIME__</time
+                >
+                <span class="muted" data-relative-time="__BUILD_TIME__">vừa xong</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Kích thước bundle</dt>
+              <dd class="mono">__TOTAL_SIZE__</dd>
+            </div>
+            <div>
+              <dt>Người build</dt>
+              <dd class="mono">__ACTOR__</dd>
+            </div>
+          </dl>
+          <p class="build-footer muted">
+            HTML, CSS và JS đều được minify + gắn hash nội dung. Trang bạn đang xem được phục vụ từ
+            artifact <code>site-dist</code> do job <strong>Build</strong> tạo ra.
+          </p>
+        </div>
+      </section>
+
+      <section class="section wrap" id="pipeline" aria-labelledby="pipeline-title">
+        <div class="section-head">
+          <h2 id="pipeline-title">Năm bước của pipeline</h2>
+          <p>
+            Các job dưới đây chạy tuần tự theo <code>needs</code>: job sau chỉ bắt đầu khi job trước
+            xanh.
+          </p>
+        </div>
+        <ol class="pipeline" id="pipeline-steps">
+          <li class="step" data-step="lint">
+            <span class="step-index">01</span>
+            <div class="step-body">
+              <h3>Lint</h3>
+              <p>ESLint + html-validate + Prettier bắt lỗi cú pháp, format trước khi tốn runner.</p>
+            </div>
+            <span class="step-status" data-status>idle</span>
+          </li>
+          <li class="step" data-step="test">
+            <span class="step-index">02</span>
+            <div class="step-body">
+              <h3>Test</h3>
+              <p>
+                Matrix Node 20 &amp; 22: unit test, test nội dung HTML, smoke test HTTP trên dist.
+              </p>
+            </div>
+            <span class="step-status" data-status>idle</span>
+          </li>
+          <li class="step" data-step="build">
+            <span class="step-index">03</span>
+            <div class="step-body">
+              <h3>Build</h3>
+              <p>esbuild bundle &amp; minify, hash tên file, tiêm metadata, upload artifact.</p>
+            </div>
+            <span class="step-status" data-status>idle</span>
+          </li>
+          <li class="step" data-step="deploy">
+            <span class="step-index">04</span>
+            <div class="step-body">
+              <h3>Deploy</h3>
+              <p>Chỉ chạy trên <code>main</code>: đẩy artifact lên GitHub Pages bằng OIDC.</p>
+            </div>
+            <span class="step-status" data-status>idle</span>
+          </li>
+          <li class="step" data-step="report">
+            <span class="step-index">05</span>
+            <div class="step-body">
+              <h3>Report</h3>
+              <p>Tổng hợp kết quả từng job vào GitHub Step Summary để nhìn một chỗ.</p>
+            </div>
+            <span class="step-status" data-status>idle</span>
+          </li>
+        </ol>
+        <div class="pipeline-actions">
+          <button class="btn btn-primary" id="replay" type="button">▶ Mô phỏng pipeline</button>
+          <p class="pipeline-status" id="pipeline-status" role="status" aria-live="polite">
+            Sẵn sàng mô phỏng.
+          </p>
+        </div>
+      </section>
+
+      <section class="section wrap" aria-labelledby="why-title">
+        <div class="section-head">
+          <h2 id="why-title">Vì sao demo này “thật”?</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <h3>Không cần server</h3>
+            <p>
+              GitHub Pages là CDN miễn phí. Deploy thật, URL công khai, không phải thuê VPS hay cấu
+              hình nginx.
+            </p>
+          </article>
+          <article class="feature">
+            <h3>Chạy trên hạ tầng GitHub</h3>
+            <p>
+              Mỗi job là một runner <code>ubuntu-latest</code> sạch, cài Node, chạy đúng lệnh như
+              máy bạn.
+            </p>
+          </article>
+          <article class="feature">
+            <h3>Có bằng chứng</h3>
+            <p>
+              Trang hiển thị commit SHA, run number và thời điểm build — dữ liệu do pipeline tạo ra,
+              không phải mock.
+            </p>
+          </article>
+          <article class="feature">
+            <h3>An toàn khi deploy</h3>
+            <p>
+              Pages chỉ nhận trên <code>main</code>, dùng OIDC + environment, có concurrency để
+              không deploy chồng nhau.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <p>
+          Build <code>__SHORT_SHA__</code> · <time datetime="__BUILD_TIME__">__BUILD_TIME__</time>
+        </p>
+        <p class="muted">
+          Demo CI/CD · <a href="__REPO_URL__" target="_blank" rel="noopener noreferrer">repo</a> ·
+          <a href="__RUN_URL__" target="_blank" rel="noopener noreferrer">workflow run</a>
+        </p>
+      </div>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <noscript>
+      <div class="noscript">Bật JavaScript để xem hiệu ứng mô phỏng pipeline và đổi giao diện.</div>
+    </noscript>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
