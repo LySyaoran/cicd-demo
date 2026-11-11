@@ -9,6 +9,15 @@ Trang live hiển thị chính `commit SHA`, `run number`, `thời điểm build
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+## 📚 Tài liệu học
+
+| Tài liệu | Nội dung |
+| --- | --- |
+| **[docs/HUONG-DAN.md](docs/HUONG-DAN.md)** | Giáo trình từ số 0: giải phẫu pipeline, từng job, từng dòng, lỗi thật đã gặp, cách mở rộng lên server |
+| [docs/CHEATSHEET.md](docs/CHEATSHEET.md) | Tra cứu nhanh cú pháp workflow, context, action, lệnh |
+| [docs/BAI-TAP.md](docs/BAI-TAP.md) | 8 lab thực hành từ dễ đến khó + bài tập tổng hợp |
+| [docs/GITHUB-SETUP.md](docs/GITHUB-SETUP.md) | Dựng repo + PAT + Pages từ đầu |
+
 ## Pipeline làm gì?
 
 ```
