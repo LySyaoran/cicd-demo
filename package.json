@@ -28,7 +28,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
-    "html-validate": "^11.4.0",
+    "html-validate": "^11.19.0",
     "prettier": "^3.10.0"
   }
 }
