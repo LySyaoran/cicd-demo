@@ -1,9 +1,5 @@
 name: CI/CD
 
-# Pipeline gồm 5 job:
-#   lint  → test (matrix Node 20/22) → build (artifact) → deploy (GitHub Pages) → report
-# Chỉ job deploy chạy trên main; pull_request dừng ở bước build.
-
 on:
   push:
     branches: [main]
@@ -11,11 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Quyền tối thiểu cho mặc định; job deploy tự nâng quyền pages/id-token.
 permissions:
   contents: read
 
-# Push liên tiếp lên cùng nhánh sẽ huỷ run cũ đang chạy.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -41,7 +35,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Cài dependencies
+      - name: Install dependencies
         run: npm ci --no-audit --fund=false
 
       - name: ESLint
@@ -54,7 +48,7 @@ jobs:
         run: npm run lint:format
 
   # ------------------------------------------------------------------
-  # 2. Test trên nhiều phiên bản Node
+  # 2. Test in Node.js 20 và 22 (unit + integration)
   # ------------------------------------------------------------------
   test:
     name: 2 · Test (Node ${{ matrix.node-version }})
@@ -75,14 +69,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Cài dependencies
+      - name: Install dependencies
         run: npm ci --no-audit --fund=false
 
       - name: Unit + integration tests
         run: npm test
 
   # ------------------------------------------------------------------
-  # 3. Build site và upload artifact
+  # 3. Build site and upload artifact
   # ------------------------------------------------------------------
   build:
     name: 3 · Build & artifact
@@ -99,13 +93,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Cài dependencies
+      - name: Install dependencies
         run: npm ci --no-audit --fund=false
 
       - name: Build site
         run: npm run build
 
-      - name: Kiểm tra output
+      - name: Check output
         run: |
           set -euo pipefail
           test -f dist/index.html
@@ -122,7 +116,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-      - name: Ghi step summary
+      - name: Write step summary
         run: |
           set -euo pipefail
           {
@@ -137,7 +131,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
-  # 4. Deploy lên GitHub Pages (chỉ trên main)
+  # 4. Deploy on GitHub Pages (only on main)
   # ------------------------------------------------------------------
   deploy:
     name: 4 · Deploy → GitHub Pages
@@ -156,19 +150,19 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
-      - name: Tải artifact từ job build
+      - name: Download artifact from build job
         uses: actions/download-artifact@v8
         with:
           name: site-dist
           path: dist
 
-      - name: Kiểm tra artifact
+      - name: Check artifact
         run: |
           set -euo pipefail
           test -f dist/index.html
           ls -la dist dist/assets
 
-      - name: Kiểm tra GitHub Pages đã bật
+      - name: Check GitHub Pages is enabled
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -191,15 +185,15 @@ jobs:
           echo "✅ GitHub Pages đã bật:"
           cat /tmp/pages.json
 
-      - name: Cấu hình GitHub Pages
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
 
-      - name: Đóng gói artifact cho Pages
+      - name: Package artifact for Pages
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
-      - name: Deploy lên GitHub Pages
+      - name: Deploy on GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
 
@@ -229,7 +223,7 @@ jobs:
 
           echo "✅ Trang live đang phục vụ đúng commit $SHORT_SHA"
 
-      - name: Ghi URL vào step summary
+      - name: Write URL into step summary
         run: |
           set -euo pipefail
           {
@@ -241,16 +235,16 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ------------------------------------------------------------------
-  # 5. Báo cáo tổng hợp
+  # 5. Report pipline result
   # ------------------------------------------------------------------
   report:
-    name: 5 · Báo cáo pipeline
+    name: 5 · Report pipeline
     needs: [lint, test, build, deploy]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Tổng hợp kết quả
+      - name: Summary pipeline result
         env:
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
